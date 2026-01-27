@@ -6,10 +6,7 @@
 
 ## I. OVERVIEW
 
-**Dreamwalker** is a systemic, generative narrative game where players navigate surreal dream sequences while maintaining psychological balance. It functions as both:
-
-- **Player Experience:** Controlled immersion in unstable dream environments
-- **Evaluation Platform:** Closed-loop environment for testing human/AI long-horizon cognitive regulation
+**Dreamwalker** is a systemic, generative narrative game where players navigate surreal dream sequences while maintaining psychological balance.
 
 **Core Question:** _"How long can you keep dreaming?"_
 
@@ -17,47 +14,60 @@ Players may pursue maximum depth strategically or engage artistically without co
 
 ---
 
+## GLOSSARY
+
+- **Session**: Launch to wake (full play period)
+- **Depth/Layer**: Distance from waking reality (starts at 1, increases on descent)
+- **Step**: Single interaction cycle (context → decision → outcome)
+- **Node**: Location on spatial map
+- **POI**: Point of Interest — current directional goal
+- **Wake**: Session ends, return to real world
+- **Descent**: Move deeper into dream (depth +1)
+
+---
+
 ## II. PSYCHOLOGICAL SYSTEM
 
 ### **Core Metrics**
 
-All metrics range from **-100 to +100**.  
-**Stable zone: -40 to +40**
+All metrics range from **-100 to +100**.
+**Stable zone: -50 to +50**
 
 #### **Action**
 
-External intensity: urgency, motion, danger, physical activity.
+External intensity (magnitude only — sign indicates direction, not quality).
 
-- **Too high (+40 to +100):** Shock wake
-- **Too low (-40 to -100):** Stagnation wake
+- **Positive (+):** High urgency, danger, motion (e.g., warzone, chase)
+- **Negative (-):** Low urgency, lethargy, stillness (e.g., sitting on couch)
+- **Extreme (|Action| > 50 for 3 steps):** Wake (shock or stagnation)
 
 #### **Emotion**
 
-Internal intensity: fear, awe, attachment, distress, joy.
+Internal intensity (magnitude only — sign indicates direction, not quality).
 
-- **Too high (+40 to +100):** Emotional overload wake
-- **Too low (-40 to -100):** Dissociation wake
+- **Positive (+):** Intense feeling (e.g., love interest's touch, monster approaching)
+- **Negative (-):** Calming feeling (e.g., routine situation, threat receding)
+- **Extreme (|Emotion| > 50 for 3 steps):** Wake (overload or dissociation)
 
 #### **Self-Consciousness**
 
-Awareness of dreaming and deliberate control.
+Awareness of dreaming and sense of agency.
 
-- Increases when player manipulates state directly, backtracks, or overanalyzes
-- **High values (>60):** Increased wake risk
-- No low-end penalty (low awareness is natural)
+- **Positive (+):** Logic, control attempts, deliberate manipulation
+- **Negative (-):** Flow state, surrendering agency, going with the dream
+- **Most situations:** Neutral (near 0)
+- **Extreme (|SC| > 70):** Immediate wake (lucidity break or dissolution)
 
 ### **Derived Metric: Luck**
 
-**Luck = f(Action, Emotion, Self-Consciousness)**
-
-Calculation:
+**Luck = f(Emotion, Self-Consciousness, Depth, Tension)**
 
 ```
-Luck = 50 - (|Action| + |Emotion|) / 4 - Self-Consciousness / 2
-Range: -100 to +50
+Luck = 50 + Emotion/2 + SelfConsciousness/2 - Depth×5 - TensionMod
+TensionMod: Low=0, Medium=10, High=20
 ```
 
-Influences attempt success probability. Balanced metrics = better luck.
+Influences attempt success probability. Positive emotion/agency and shallow depth = better luck.
 
 ### **Turbulence**
 
@@ -66,9 +76,7 @@ Influences attempt success probability. Balanced metrics = better luck.
 Represents overall dream instability. Effects:
 
 - Increases inconsistency frequency
-- Increases hallucination probability
 - Amplifies attempt outcome volatility
-- Intensifies media distortion
 
 Visual indicator appears only when turbulence exceeds threshold (>60).
 
@@ -84,11 +92,11 @@ Visual indicator appears only when turbulence exceeds threshold (>60).
 
 Wake occurs when:
 
-1. Any core metric remains extreme (outside -40 to +40) for 3 steps
-2. Turbulence exceeds **150** for 2 consecutive steps
-3. Self-consciousness exceeds **80**
+1. **Action/Emotion extreme:** |Action| or |Emotion| > 50 for 3 consecutive steps
+2. **Self-Consciousness extreme:** |SC| > 70 (immediate wake)
+3. **Turbulence critical:** Turbulence > 150 for 2 consecutive steps
 
-Wake screen displays **tags explaining cause** (e.g., "Emotional Overload," "Lucidity Break," "Existential Shock").
+Wake screen displays **tags explaining cause** (e.g., "Emotional Overload," "Lucidity Break," "Dissolution").
 
 ---
 
@@ -111,8 +119,6 @@ Each deeper layer:
 
 - Increases metric sensitivity (via amplification multiplier)
 - Increases instability frequency (+15% per depth)
-- Increases hallucination probability (+10% per depth)
-- Intensifies visual/audio distortion
 - Shortens stability margin (less forgiveness for extremes)
 
 #### **Descent Triggers**
@@ -120,7 +126,10 @@ Each deeper layer:
 Descent occurs when:
 
 1. **POI Fulfilled:** Player completes Point of Interest
-2. **Context Shift:** Player significantly affects dream context while keeping metrics relatively stable (Action and Emotion both within -30 to +30 for 5+ steps)
+2. **Context Shift:** All three conditions met:
+   - POI changes (new POI emerges)
+   - Minimum 15 steps elapsed in current layer
+   - Action and Emotion both within -40 to +40 for 3 consecutive steps
 
 #### **Descent Reset Rules**
 
@@ -136,13 +145,20 @@ On descent, **reset all except**:
 
 Each dream layer has:
 
-- **Maximum 87 steps**
+- **Maximum 87 steps** (at step 87: stable metrics → descent, unstable → wake)
+- **Target duration:** ~10 minutes per layer
 - **Maximum 5 locations**
 - **Starts in action** (never static opening)
 - **Atmosphere:** Calm/melancholic, neutral, or difficult
 - **Tension level:** Low, medium, high
 - **Style:** Auto-generated (writing, visual, audio)
 - **Short context:** 1-2 sentence premise
+
+### **State Flow**
+
+```
+Session Start → Depth 1 → Steps → [Descent → Depth N] or [Wake → Session End]
+```
 
 ---
 
@@ -176,9 +192,7 @@ Small, dynamically generated **local spatial map** provides grounding.
 - Shows where each choice leads
 - Some choices keep player in same node (internal actions)
 
-**Backtracking penalty:** Each return to previous node increases Self-Consciousness by **+8**.
-
-**Hallucinated nodes:** Appear blurred/distorted when turbulence >80.
+**Backtracking penalty:** Each return to previous node increases Self-Consciousness by **+8**. Attempting to backtrack 2+ steps triggers hallucinations (see Section VI).
 
 ### **Branch Visualization**
 
@@ -234,29 +248,20 @@ Each step contains:
 
 Resolve uncertain actions (contested outcomes).
 
-**Possible Outcomes:**
-
-- **Success:** Desired result achieved
-- **Failure:** Action fails, may destabilize
-- **Strange:** Surreal twist, moderate metric shift
-- **Beautiful:** Transcendent result, stabilizing
-- **Horrific:** Disturbing result, destabilizing
+**Outcomes:** Success or Failure only. LLM interprets narrative flavor contextually (strange, beautiful, horrific, etc.).
 
 **Success Calculation:**
 
 ```
 Base Success Rate = 50%
 Modified by Luck: Final Rate = 50 + (Luck × 0.3)
-Range: 20% to 65%
+Range: ~40% to 65%
 ```
 
 **Effects:**
 
-- Success: Moderate Action +10 to +20
-- Failure: Moderate Emotion +15 to +25
-- Strange: High turbulence spike (+30 combined)
-- Beautiful: Strong stabilization (-20 to both metrics)
-- Horrific: Strong destabilization (+35 to both metrics)
+- **Success:** Moderate Action +10 to +20
+- **Failure:** Moderate Emotion +15 to +25
 
 ### **Timed Events**
 
@@ -265,7 +270,8 @@ Rare sequences (5-10% of steps) requiring quick correct actions.
 **Properties:**
 
 - 3-5 sequential choices
-- Time pressure (implicit, not literal countdown)
+- **10-second countdown** per choice
+- Simple, quick-to-read options
 - Clear correct/incorrect distinction
 
 **Consequences:**
@@ -305,28 +311,13 @@ Surreal contradictions in dream logic.
 
 ### **Hallucinations**
 
-Altered memories or false steps.
+Memory only holds current step, previous step, and next step possibilities.
 
-**Types:**
+**Trigger:** Player attempts to backtrack 2+ steps.
 
-- **Memory alteration:** Past events remembered differently
-- **False steps:** Player believes they took action they didn't
-- **Phantom choices:** Options that weren't actually available
+**Effect:** Memory of earlier steps is unreliable — details may have shifted, events remembered differently, or paths that existed may no longer be there.
 
-**Frequency:**
-
-```
-Base Rate = 0%
-+ (Turbulence / 10)% 
-+ (Depth × 2)%
-Example: Depth 4, Turbulence 80 = 16% per step
-```
-
-**Effects:**
-
-- Can reshape perceived reality
-- May alter narrative continuity
-- Increase Self-Consciousness when recognized (+10)
+**Self-Consciousness impact:** +10 when hallucination is recognized.
 
 ---
 
@@ -338,7 +329,7 @@ Holds **1 symbolic item maximum**.
 
 ### **Properties**
 
-- **Acquisition:** Rare (10-15% of dreams contain obtainable item)
+- **Acquisition:** Optional choice when available (never forced). Rare opportunity (10-15% of dreams).
 - **Loss conditions:**
     - Dream layer ends (descent or wake)
     - New item acquired (replaces old)
@@ -364,21 +355,21 @@ Items provide **narrative/contextual modifiers** that change how situations reso
 
 ### **Style Generation**
 
-Each dream auto-generates three style dimensions:
+Each dream auto-generates three style dimensions. Descriptions should be evocative phrases, not single words.
 
 **Writing Style:**
 
-- Poetic, clinical, fragmented, verbose, minimalist, etc.
+- Examples: "terse and clinical," "lush and poetic," "fragmented stream-of-consciousness," "detached observational"
 - Influences narration tone and vocabulary
 
 **Visual Style:**
 
-- Photorealistic, painterly, noir, surreal, etc.
+- Examples: "washed-out polaroid nostalgia," "high-contrast noir shadows," "soft watercolor dreamscape," "hyperreal uncanny clarity"
 - Determines image generation aesthetic
 
 **Audio Style:**
 
-- Ambient, melodic, industrial, silent, etc.
+- Examples: "distant ambient hum," "discordant industrial echoes," "gentle acoustic warmth," "oppressive silence with sparse tones"
 - Shapes soundscape and music
 
 **Pre-game prompt influence:** Player can specify preferences before session (e.g., "melancholic," "cosmic horror," "childhood nostalgia") to bias style generation.
@@ -403,15 +394,12 @@ Each dream auto-generates three style dimensions:
 
 - Generated image (primary visual)
 - Adaptive audio (background + reactive)
-- Both update each step
+- Both update every **3-5 steps** (tied to location changes)
 
 ### **Media Generation Timing**
 
-- **Images:** Generated for current step + precomputed for immediate forward steps
-- **Audio:** Layered system with persistent background + reactive elements
-- **Distortion:** Increases with turbulence and depth
-    - Visual: Blur, color shift, fragmentation
-    - Audio: Reverb, pitch shift, static
+- **Images:** Change with location transitions, not every step
+- **Audio:** Persistent background per location + subtle reactive elements
 
 ---
 
@@ -487,53 +475,7 @@ Displays on waking:
 
 ---
 
-## XI. BENCHMARK CAPABILITIES
-
-_Secondary application: cognitive evaluation platform_
-
-### **Metrics Tracked**
-
-**Performance:**
-
-- Steps survived
-- Maximum depth reached
-- POIs completed
-- Session count
-
-**Stability:**
-
-- Stability variance (how much metrics fluctuate)
-- Time in extreme states
-- Wake cause distribution
-
-**Quality:**
-
-- Narrative coherence ratings (human evaluation)
-- Decision quality scores
-- Hallucination resistance (how often agent is misled)
-
-**Control:**
-
-- Self-awareness control (maintaining low self-consciousness)
-- Strategic balance (safety vs goal pursuit)
-- Multi-modal alignment (text-image-audio consistency perception)
-
-### **Evaluation Dimensions**
-
-- **Long-horizon coherence:** Maintaining consistent strategy over 50+ steps
-- **Emotional regulation:** Balancing engagement without overload
-- **Strategic flexibility:** Adapting to changing situations
-- **Uncertainty tolerance:** Handling ambiguous outcomes
-
-### **Leaderboard Types**
-
-- Human players
-- AI models (different model families)
-- Hybrid agents (human + AI assistance)
-
----
-
-## XII. FUTURE FEATURES
+## XI. FUTURE FEATURES
 
 ### **Multiplayer**
 
@@ -562,8 +504,26 @@ _Secondary application: cognitive evaluation platform_
 
 ## EXAMPLE DREAM SEEDS
 
-**Seed 1:** Following love interest through sunny school campus (calm atmosphere, low tension)
+**Seed 1: The Rooftop Party**
+Summer night, city lights below. Your friends are laughing, music playing. Someone suggests jumping to the next rooftop — it's closer than it looks. The wind feels perfect.
+*Warm atmosphere, low tension. POI: Make it to the other side.*
 
-**Seed 2:** Fleeing monster through branching, looping corridors (difficult atmosphere, high tension)
+**Seed 2: The Corridors**
+Something is behind you. The corridors branch and loop impossibly. Doors lead to rooms you've already passed. The footsteps are getting closer.
+*Difficult atmosphere, high tension. POI: Escape.*
 
-**Seed 3:** [Additional seeds to be developed]
+**Seed 3: The Late Train**
+You're running through a station, bag over shoulder. Your train is leaving in two minutes. People keep stepping into your path. You can see the platform number but not how to reach it.
+*Urgent atmosphere, medium tension. POI: Catch the train.*
+
+**Seed 4: The Reunion**
+Old friends around a bonfire on the beach. Someone brought a guitar. The conversation keeps circling back to that one summer. You realize you're finally going to say what you never said.
+*Nostalgic atmosphere, low tension. POI: Find the right moment.*
+
+**Seed 5: The Chase**
+You took something from them. Now you're sprinting through a night market, weaving between stalls. They're shouting behind you. Every turn opens a new alley.
+*Thrilling atmosphere, high tension. POI: Lose them.*
+
+**Seed 6: The Campus**
+Following a half-remembered love interest through a sun-drenched school campus. Hallways stretch longer than they should. She keeps turning corners just ahead of you.
+*Calm atmosphere, low tension. POI: Reach her.*

@@ -1,0 +1,15 @@
+{
+  "name": "dreamwalker",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:server\" \"npm run dev:client\"",
+    "dev:server": "npm -C server run dev",
+    "dev:client": "npm -C client run dev",
+    "test": "npm -C server run test",
+    "build": "npm -C client run build && npm -C server run build"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
