@@ -1,3 +1,6 @@
+// index.ts (multiple agents - director, storyteller and brancher) orchestrator provides all key elements, run orchestrator every time from init, storyteller should be 1 constant, brancher should run from init every 5 steps
+// Additionally idea generator at the start - him + story teller can have higher temperatures
+
 # Dreamwalker Implementation Plan
 
 ## Tech Stack

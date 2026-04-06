@@ -1,12 +1,204 @@
 @import "tailwindcss";
 
+/* ASCII-style font */
+* {
+  font-family: 'Courier New', 'Lucida Console', Monaco, monospace;
+}
+
 body {
   margin: 0;
   min-height: 100vh;
-  background-color: #0a0a0f;
-  color: #e5e5e5;
+  background-color: #05050a;
+  color: #c0c0c0;
+  overflow: hidden;
 }
 
 #root {
   min-height: 100vh;
+  position: relative;
+}
+
+/* Starfield background */
+.starfield {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+
+.starfield::before,
+.starfield::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 200%;
+  height: 200%;
+  background-image:
+    radial-gradient(1px 1px at 20px 30px, #fff, transparent),
+    radial-gradient(1px 1px at 40px 70px, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1px 1px at 50px 160px, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 90px 40px, #fff, transparent),
+    radial-gradient(1px 1px at 130px 80px, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1px 1px at 160px 120px, #fff, transparent),
+    radial-gradient(1px 1px at 200px 50px, rgba(255,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 220px 140px, #fff, transparent),
+    radial-gradient(1px 1px at 260px 90px, rgba(255,255,255,0.8), transparent),
+    radial-gradient(1px 1px at 300px 170px, #fff, transparent),
+    radial-gradient(1px 1px at 340px 60px, rgba(255,255,255,0.6), transparent),
+    radial-gradient(1px 1px at 380px 130px, #fff, transparent),
+    radial-gradient(1px 1px at 420px 20px, rgba(255,255,255,0.7), transparent),
+    radial-gradient(1px 1px at 460px 100px, #fff, transparent),
+    radial-gradient(1px 1px at 500px 150px, rgba(255,255,255,0.5), transparent),
+    radial-gradient(2px 2px at 425px 95px, rgba(180,180,255,0.8), transparent),
+    radial-gradient(2px 2px at 475px 145px, rgba(255,180,180,0.7), transparent);
+  background-size: 520px 200px;
+  animation: drift 80s ease-in-out infinite alternate;
+}
+
+.starfield::after {
+  background-image:
+    radial-gradient(1px 1px at 25px 45px, rgba(180,180,255,0.6), transparent),
+    radial-gradient(1px 1px at 75px 110px, rgba(255,200,200,0.5), transparent),
+    radial-gradient(1px 1px at 125px 25px, rgba(200,255,200,0.4), transparent),
+    radial-gradient(1px 1px at 175px 85px, rgba(255,255,180,0.5), transparent),
+    radial-gradient(1px 1px at 225px 165px, rgba(180,200,255,0.6), transparent),
+    radial-gradient(1px 1px at 275px 55px, rgba(255,180,255,0.4), transparent),
+    radial-gradient(1px 1px at 325px 125px, rgba(200,255,255,0.5), transparent),
+    radial-gradient(1px 1px at 375px 35px, rgba(255,220,180,0.6), transparent);
+  background-size: 500px 180px;
+  animation: drift 80s ease-in-out infinite alternate-reverse, colorShift 0.5s ease-in-out infinite alternate-reverse;
+  opacity: 0.7;
+}
+
+@keyframes drift {
+  from { transform: translate(0, 0); }
+  to { transform: translate(-380px, -180px); }
+}
+
+@keyframes colorShift {
+  0% { filter: hue-rotate(0deg) brightness(1); }
+  25% { filter: hue-rotate(90deg) brightness(0.9); }
+  50% { filter: hue-rotate(180deg) brightness(1.2); }
+  75% { filter: hue-rotate(270deg) brightness(2.6); }
+  100% { filter: hue-rotate(360deg) brightness(1); }
+}
+
+
+/* ASCII box styling */
+.ascii-box {
+  border: 1px solid #404050;
+  background: rgba(10, 10, 20, 0.8);
+  position: relative;
+}
+
+.ascii-box::before {
+  position: absolute;
+  top: -1px;
+  left: -1px;
+  color: #505060;
+  font-size: 10px;
+  line-height: 1;
+}
+
+.ascii-box::after {
+  position: absolute;
+  top: -1px;
+  right: -1px;
+  color: #505060;
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* ASCII button styling */
+.ascii-btn {
+  border: 1px solid #505060;
+  background: rgba(20, 20, 35, 0.9);
+  transition: all 0.15s, border-width 0.6s ease-in-out, box-shadow 0.6s ease-in-out;
+  position: relative;
+}
+
+.ascii-btn:hover {
+  border-color: #7070a0;
+  background: rgba(40, 40, 60, 0.9);
+  box-shadow: 0 0 8px rgba(100, 100, 180, 0.3);
+}
+
+.ascii-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+/* Pixelated image rendering */
+.pixel-img {
+  image-rendering: pixelated;
+  image-rendering: -moz-crisp-edges;
+  image-rendering: crisp-edges;
+}
+
+/* Metric bar ASCII style */
+.metric-track {
+  background: #101018;
+  border: 1px solid #303040;
+  height: 8px;
+  position: relative;
+}
+
+.metric-track::before {
+  content: '|';
+  position: absolute;
+  left: 50%;
+  top: -2px;
+  transform: translateX(-50%);
+  color: #404050;
+  font-size: 10px;
+  line-height: 1;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: #101018;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #303040;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #404050;
+}
+
+/* Remove all border radius by default */
+*, *::before, *::after {
+  border-radius: 0 !important;
+}
+
+/* Loading state - thicker borders with gradient animation */
+.loading-state .ascii-box {
+  animation: borderGradient 2s ease-in-out infinite;
+}
+
+.loading-state .ascii-btn {
+  animation: borderGradient 2s ease-in-out infinite;
+}
+
+@keyframes borderGradient {
+  0% {
+    border-color: #404050;
+  }
+  50% {
+    border-color: #495fa1;
+  }
+  100% {
+    border-color: #404050;
+  }
 }

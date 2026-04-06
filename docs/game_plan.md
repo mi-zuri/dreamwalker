@@ -1,3 +1,5 @@
+Make it open world multiplayer with a big map, where people can navigate and influence the world around?
+
 # 🌙 DREAMWALKER
 
 ## Complete Design Document

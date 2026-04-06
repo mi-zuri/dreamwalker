@@ -1,24 +1,15 @@
-// Psychological Metrics (-100 to +100, stable zone: -50 to +50)
 export interface Metrics {
-  action: number;      // External intensity
-  emotion: number;     // Internal intensity
-  selfConsciousness: number; // Awareness of dreaming
+  arousal: number;
+  valence: number;
+  selfAwareness: number;
 }
 
-// Derived values
 export interface DerivedMetrics {
-  luck: number;        // Influences attempt success
-  turbulence: number;  // Dream instability (|action| + |emotion|)
+  luck: number;
+  turbulence: number;
 }
 
-// Tension levels affect luck calculation
-export type TensionLevel = 'low' | 'medium' | 'high';
-
-// Atmosphere affects dream generation
-export type Atmosphere = 'calm' | 'neutral' | 'difficult';
-
-// POI types
-export type POIType = 'reach' | 'understand' | 'deliver' | 'escape' | 'witness';
+export type POIType = string;
 
 export interface POI {
   type: POIType;
@@ -26,27 +17,15 @@ export interface POI {
   fulfilled: boolean;
 }
 
-// Decision in a step
 export interface Decision {
   id: string;
   text: string;
-  effects: {
-    action: number;    // Direction shown, magnitude hidden
-    emotion: number;
-    selfConsciousness: number;
-  };
-  leadsToNode: string | null; // null = same node
+  successEffects: { arousal: number; valence: number; selfAwareness: number };
+  failureEffects: { arousal: number; valence: number; selfAwareness: number };
+  successChance: number;
+  leadsToNode: string | null;
 }
 
-// Attempt (uncertain action)
-export interface Attempt {
-  id: string;
-  text: string;
-  successEffects: { action: number; emotion: number };
-  failureEffects: { action: number; emotion: number };
-}
-
-// Location in dream
 export interface Location {
   id: string;
   name: string;
@@ -61,20 +40,12 @@ export interface Location {
 export interface Step {
   id: string;
   stepNumber: number;
-  context: string;           // 1-sentence situation
-  decisions: Decision[];     // 1-4 choices
-  attempts?: Attempt[];      // Optional uncertain actions
+  context: string;
+  decisions: Decision[];
   locationId: string;
   poiVisible: boolean;
   isTimed: boolean;
-  timedDeadline?: number;    // 10 seconds
-}
-
-// Extreme step counters for wake detection
-export interface ExtremeSteps {
-  action: number;
-  emotion: number;
-  turbulence: number;
+  timedDeadline?: number;
 }
 
 // Wake cause tags
@@ -82,24 +53,47 @@ export type WakeCause =
   | 'emotional_overload'
   | 'action_overload'
   | 'lucidity_break'
-  | 'dissolution'
-  | 'terror_spiral'
-  | 'stagnation'
-  | 'turbulence_critical';
+  | 'dissolution';
 
-// Dream layer state
 export interface DreamLayer {
-  depth: number;
   stepCount: number;
-  maxSteps: number;          // 87
+  maxSteps: number;
   locations: Location[];
   currentLocationIndex: number;
-  poi: POI;
-  atmosphere: Atmosphere;
-  tension: TensionLevel;
+  poi: POI | null;
+  world: string;
   writingStyle: string;
   visualStyle: string;
   audioStyle: string;
+}
+
+// Stability tracking for descent
+export interface StabilityTracker {
+  consecutiveStable: number;
+}
+
+// Location history for backtrack detection
+export interface LocationHistory {
+  locationIds: string[];
+}
+
+export interface StoryEntry {
+  context: string;
+  chosenAction: string;
+  outcome?: string;
+}
+
+// Claude conversation message
+export interface ConversationMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+// Last step data for Director
+export interface LastStepData {
+  storytellerOutput: string;
+  choices: Array<{ id: string; text: string }>;
+  judgeOutput: JudgeOutput;
 }
 
 // Session state
@@ -107,18 +101,36 @@ export interface GameState {
   sessionId: string;
   masterSeed: string;
   metrics: Metrics;
-  extremeSteps: ExtremeSteps;
   dreamLayer: DreamLayer;
   currentStep: Step | null;
-  stepHistory: string[];     // Step IDs
-  inventory: string | null;  // Single symbolic item
+  stepHistory: string[];
+  storyHistory: StoryEntry[];
+  locationHistory: LocationHistory;
+  stabilityTracker: StabilityTracker;
+  inventory: string | null;
   isAwake: boolean;
   wakeCause: WakeCause | null;
+  initialThought: string | null;
+  conversationHistory: ConversationMessage[];
+  lastStepData: LastStepData | null;
 }
+
+// Style presets for pre-game selection
+export interface StylePreferences {
+  visual: VisualStylePreset;
+  audio: AudioStylePreset;
+  writing: WritingStylePreset;
+}
+
+export type VisualStylePreset = string;
+
+export type AudioStylePreset = string;
+
+export type WritingStylePreset = string;
 
 // API request/response types
 export interface StartSessionRequest {
-  stylePreferences?: string;
+  initialThought?: string;
 }
 
 export interface StartSessionResponse {
@@ -131,11 +143,6 @@ export interface MakeDecisionRequest {
   decisionId: string;
 }
 
-export interface MakeAttemptRequest {
-  sessionId: string;
-  attemptId: string;
-}
-
 export interface StepResponse {
   state: GameState;
   step: Step;
@@ -143,4 +150,24 @@ export interface StepResponse {
     text: string;
     metricsChanged: Partial<Metrics>;
   };
+}
+
+// Agent response types for multi-agent Claude system
+export interface InitiatorOutput {
+  world: string;
+  writingStyle: string;
+  visualStyle: string;
+  audioStyle: string;
+}
+
+export interface JudgeOutput {
+  event: Metrics;
+  choices: Metrics[];
+}
+
+export interface DirectorOutput {
+  locationChange: boolean;
+  poi: boolean;
+  timedEvent: boolean;
+  guidance: string;
 }

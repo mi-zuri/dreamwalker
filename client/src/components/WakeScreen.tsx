@@ -2,71 +2,56 @@ import type { WakeCause } from '../../../shared/types';
 
 interface WakeScreenProps {
   cause: WakeCause;
-  depth: number;
   steps: number;
   onRestart: () => void;
 }
 
-const causeLabels: Record<WakeCause, { title: string; description: string }> = {
+const causeLabels: Record<WakeCause, { title: string; desc: string }> = {
   emotional_overload: {
-    title: 'Emotional Overload',
-    description: 'The feelings became too intense to contain.',
+    title: 'EMOTIONAL_OVERLOAD',
+    desc: 'feelings became too intense',
   },
   action_overload: {
-    title: 'Shock',
-    description: 'The external intensity shattered the dream.',
+    title: 'SHOCK',
+    desc: 'external intensity shattered the dream',
   },
   lucidity_break: {
-    title: 'Lucidity Break',
-    description: 'You became too aware. The dream could not hold.',
+    title: 'LUCIDITY_BREAK',
+    desc: 'you became too aware',
   },
   dissolution: {
-    title: 'Dissolution',
-    description: 'You surrendered too completely. You lost yourself.',
-  },
-  terror_spiral: {
-    title: 'Terror Spiral',
-    description: 'Fear consumed everything.',
-  },
-  stagnation: {
-    title: 'Stagnation',
-    description: 'The stillness became absolute. Nothing remained.',
-  },
-  turbulence_critical: {
-    title: 'Reality Fracture',
-    description: 'The dream tore itself apart.',
+    title: 'DISSOLUTION',
+    desc: 'you surrendered completely',
   },
 };
 
-export function WakeScreen({ cause, depth, steps, onRestart }: WakeScreenProps) {
-  const { title, description } = causeLabels[cause];
+export function WakeScreen({ cause, steps, onRestart }: WakeScreenProps) {
+  const { title, desc } = causeLabels[cause];
 
   return (
-    <div className="fixed inset-0 bg-black/95 flex items-center justify-center">
-      <div className="text-center max-w-md px-6">
-        <h1 className="text-4xl font-light text-white mb-4">You Wake</h1>
+    <div className="h-screen flex items-center justify-center p-4 relative">
+      <div className="starfield" />
 
-        <div className="bg-red-900/30 border border-red-800/50 rounded-lg px-4 py-2 mb-8">
-          <p className="text-red-400 font-medium">{title}</p>
-          <p className="text-red-300/70 text-sm mt-1">{description}</p>
+      <div className="ascii-box p-6 max-w-sm w-full text-center relative z-10">
+        <h1 className="text-gray-400 text-lg tracking-widest mb-6">YOU WAKE</h1>
+
+        <div className="ascii-box p-3 mb-6 border-red-900">
+          <div className="text-red-400 text-xs">{title}</div>
+          <div className="text-red-300/70 text-xs mt-1">{desc}</div>
         </div>
 
-        <div className="flex justify-center gap-8 text-sm text-gray-400 mb-12">
+        <div className="flex justify-center gap-6 text-xs mb-8">
           <div>
-            <span className="block text-2xl text-white">{depth}</span>
-            Depth Reached
-          </div>
-          <div>
-            <span className="block text-2xl text-white">{steps}</span>
-            Steps Survived
+            <div className="text-gray-300 text-lg">{steps}</div>
+            <div className="text-gray-600">steps</div>
           </div>
         </div>
 
         <button
           onClick={onRestart}
-          className="px-8 py-3 bg-white/10 hover:bg-white/20 text-white rounded-lg transition-colors"
+          className="ascii-btn px-6 py-2 text-sm text-gray-400 hover:text-white"
         >
-          Dream Again
+          [DREAM AGAIN]
         </button>
       </div>
     </div>

@@ -6,39 +6,49 @@ interface MetricBarProps {
 }
 
 export function MetricBar({ label, value, color, showWarning }: MetricBarProps) {
-  // Metric range: -100 to +100
-  // Bar fills from center (0) outward
   const absValue = Math.abs(value);
   const isPositive = value >= 0;
   const isExtreme = absValue > 50;
 
+  // ASCII progress bar characters
+  const totalWidth = 20;
+  const filledCount = Math.round((absValue / 100) * (totalWidth / 2));
+
+  let bar = '';
+  for (let i = 0; i < totalWidth; i++) {
+    const center = totalWidth / 2;
+    if (isPositive) {
+      if (i >= center && i < center + filledCount) {
+        bar += '#';
+      } else if (i === center) {
+        bar += '|';
+      } else {
+        bar += '-';
+      }
+    } else {
+      if (i < center && i >= center - filledCount) {
+        bar += '#';
+      } else if (i === center) {
+        bar += '|';
+      } else {
+        bar += '-';
+      }
+    }
+  }
+
   return (
-    <div className="mb-3">
-      <div className="flex justify-between text-sm mb-1">
-        <span className="text-gray-400">{label}</span>
-        <span className={isExtreme && showWarning ? 'text-red-400' : 'text-gray-300'}>
+    <div className="mb-2 text-xs">
+      <div className="flex justify-between mb-0.5">
+        <span className="text-gray-500">{label}</span>
+        <span className={isExtreme && showWarning ? 'text-red-400' : 'text-gray-400'}>
           {value > 0 ? '+' : ''}{value}
         </span>
       </div>
-      <div className="h-3 bg-gray-800 rounded-full overflow-hidden relative">
-        {/* Center line */}
-        <div className="absolute left-1/2 top-0 bottom-0 w-px bg-gray-600" />
-
-        {/* Stable zone indicators */}
-        <div className="absolute left-[25%] top-0 bottom-0 w-px bg-gray-700/50" />
-        <div className="absolute left-[75%] top-0 bottom-0 w-px bg-gray-700/50" />
-
-        {/* Value bar */}
-        <div
-          className={`absolute top-0 bottom-0 transition-all duration-300 ${
-            isExtreme ? 'animate-pulse' : ''
-          }`}
-          style={{
-            backgroundColor: isExtreme ? '#ef4444' : color,
-            left: isPositive ? '50%' : `${50 - absValue / 2}%`,
-            width: `${absValue / 2}%`,
-          }}
-        />
+      <div
+        className={`tracking-wider ${isExtreme && showWarning ? 'animate-pulse text-red-400' : ''}`}
+        style={{ color: isExtreme ? '#ef4444' : color }}
+      >
+        [{bar}]
       </div>
     </div>
   );

@@ -8,15 +8,15 @@ export function DerivedMetrics({ luck, turbulence }: DerivedMetricsProps) {
   const turbulenceCritical = turbulence > 150;
 
   return (
-    <div className="flex gap-6 text-sm">
+    <div className="flex gap-4 text-xs">
       <div>
-        <span className="text-gray-500">Luck</span>
-        <span className="ml-2 text-blue-400">{Math.round(luck)}%</span>
+        <span className="text-gray-600">LUCK:</span>
+        <span className="ml-1 text-blue-400">{Math.round(luck)}%</span>
       </div>
       {turbulenceHigh && (
         <div className={turbulenceCritical ? 'animate-pulse' : ''}>
-          <span className="text-gray-500">Turbulence</span>
-          <span className={`ml-2 ${turbulenceCritical ? 'text-red-400' : 'text-orange-400'}`}>
+          <span className="text-gray-600">TURB:</span>
+          <span className={`ml-1 ${turbulenceCritical ? 'text-red-400' : 'text-orange-400'}`}>
             {Math.round(turbulence)}
           </span>
         </div>
