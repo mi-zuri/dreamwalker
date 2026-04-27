@@ -1,11 +1,9 @@
 import { Router } from 'express';
 import { validateSessionId } from '../utils/validation.js';
 import { getSession, setSession } from '../sessions.js';
-import { withSessionLock } from '../utils/mutex.js';
 import { getDerivedMetrics } from '../game/metrics.js';
 import { applyDecision, advanceStep } from '../game/state.js';
-import { generateStep } from '../services/claude.js';
-import { generateSceneImage } from '../services/image.js';
+import { generateStep } from '../services/text.js';
 import { updateAudioPrompt } from '../services/audio.js';
 
 const router = Router();
@@ -13,44 +11,43 @@ const router = Router();
 // POST /api/session/:id/generate - Generate next story step
 router.post('/:id/generate', validateSessionId, async (req, res) => {
   const sessionId = req.params.id as string;
+  const state = getSession(sessionId);
 
-  await withSessionLock(sessionId, async () => {
-    const state = getSession(sessionId);
-    if (!state) {
-      res.status(404).json({ error: 'Session not found' });
-      return;
+  if (!state) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
+
+  if (state.isAwake) {
+    res.status(400).json({ error: 'Session ended (woke)' });
+    return;
+  }
+
+  try {
+    const imaginedElement = req.body?.imaginedElement as string | undefined;
+    const step = await generateStep(state, imaginedElement);
+    setSession(sessionId, state);
+
+    // Update audio prompt to match the new scene
+    const currentLocation = state.dreamLayer.locations[state.dreamLayer.currentLocationIndex];
+    if (currentLocation && step) {
+      updateAudioPrompt(
+        sessionId,
+        currentLocation.audioStyle,
+        state.metrics.arousal,
+        state.metrics.valence,
+        state.metrics.selfAwareness,
+        step.context,
+      ).catch((error) => {
+        console.error('Failed to update audio prompt:', error);
+      });
     }
 
-    if (state.isAwake) {
-      res.status(400).json({ error: 'Session ended (woke)' });
-      return;
-    }
-
-    try {
-      const step = await generateStep(state);
-      setSession(sessionId, state);
-
-      // Update audio prompt to match the new scene
-      const currentLocation = state.dreamLayer.locations[state.dreamLayer.currentLocationIndex];
-      if (currentLocation && step) {
-        updateAudioPrompt(
-          sessionId,
-          currentLocation.audioStyle,
-          state.metrics.arousal,
-          state.metrics.valence,
-          state.metrics.selfAwareness,
-          step.context
-        ).catch((error) => {
-          console.error('Failed to update audio prompt:', error);
-        });
-      }
-
-      res.json({ step, state });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : 'Unknown error';
-      res.status(500).json({ error: message });
-    }
-  });
+    res.json({ step, state });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown error';
+    res.status(500).json({ error: message });
+  }
 });
 
 // POST /api/session/:id/decide - Execute player decision
@@ -62,66 +59,62 @@ router.post('/:id/decide', validateSessionId, async (req, res) => {
   }
 
   const sessionId = req.params.id as string;
-  await withSessionLock(sessionId, async () => {
-    const state = getSession(sessionId);
-    if (!state) {
-      res.status(404).json({ error: 'Session not found' });
-      return;
-    }
+  const state = getSession(sessionId);
 
-    if (state.isAwake) {
-      res.status(400).json({ error: 'Session already ended (player woke)' });
-      return;
-    }
+  if (!state) {
+    res.status(404).json({ error: 'Session not found' });
+    return;
+  }
 
-    if (!state.currentStep) {
-      res.status(400).json({ error: 'No current step - call /generate first' });
-      return;
-    }
+  if (state.isAwake) {
+    res.status(400).json({ error: 'Session already ended (player woke)' });
+    return;
+  }
 
-    const result = applyDecision(state, decisionId);
-    if (!result) {
-      res.status(400).json({ error: 'Invalid decision ID' });
-      return;
-    }
+  if (!state.currentStep) {
+    res.status(400).json({ error: 'No current step - call /generate first' });
+    return;
+  }
 
-    // Add to story history
-    const chosenDecision = state.currentStep.decisions.find((d) => d.id === decisionId);
-    if (chosenDecision) {
-      state.storyHistory.push({
-        context: state.currentStep.context,
-        chosenAction: chosenDecision.text,
-        outcome: result.success ? 'success' : 'failure',
-      });
-    }
+  const result = applyDecision(state, decisionId);
+  if (!result) {
+    res.status(400).json({ error: 'Invalid decision ID' });
+    return;
+  }
 
-    // Advance step after decision
-    advanceStep(state);
-
-    // Save updated state
-    setSession(sessionId, state);
-
-    // Update audio prompt to reflect new metrics after decision
-    const currentLocation = state.dreamLayer.locations[state.dreamLayer.currentLocationIndex];
-    if (currentLocation) {
-      updateAudioPrompt(
-        sessionId,
-        currentLocation.audioStyle,
-        state.metrics.arousal,
-        state.metrics.valence,
-        state.metrics.selfAwareness
-      ).catch((error) => {
-        console.error('Failed to update audio prompt:', error);
-      });
-    }
-
-    res.json({
-      success: result.success,
-      appliedEffects: result.appliedEffects,
-      woke: result.woke,
-      wakeCause: result.wakeCause,
-      state,
+  // Add to story history
+  const chosenDecision = state.currentStep.decisions.find((d) => d.id === decisionId);
+  if (chosenDecision) {
+    state.storyHistory.push({
+      context: state.currentStep.context,
+      chosenAction: chosenDecision.text,
+      outcome: result.success ? 'success' : 'failure',
     });
+  }
+
+  advanceStep(state);
+  setSession(sessionId, state);
+
+  // Update audio prompt to reflect new metrics
+  const currentLocation = state.dreamLayer.locations[state.dreamLayer.currentLocationIndex];
+  if (currentLocation) {
+    updateAudioPrompt(
+      sessionId,
+      currentLocation.audioStyle,
+      state.metrics.arousal,
+      state.metrics.valence,
+      state.metrics.selfAwareness,
+    ).catch((error) => {
+      console.error('Failed to update audio prompt:', error);
+    });
+  }
+
+  res.json({
+    success: result.success,
+    appliedEffects: result.appliedEffects,
+    woke: result.woke,
+    wakeCause: result.wakeCause,
+    state,
   });
 });
 
@@ -136,34 +129,6 @@ router.get('/:id/derived', validateSessionId, (req, res) => {
 
   const derived = getDerivedMetrics(state.metrics);
   res.json(derived);
-});
-
-// POST /api/session/:id/generate-image - Generate scene image on-demand
-router.post('/:id/generate-image', validateSessionId, async (req, res) => {
-  const sessionId = req.params.id as string;
-  const state = getSession(sessionId);
-  if (!state) {
-    res.status(404).json({ error: 'Session not found' });
-    return;
-  }
-
-  if (!state.currentStep) {
-    res.status(400).json({ error: 'No current step' });
-    return;
-  }
-
-  try {
-    const imageUrl = await generateSceneImage({
-      visualStyle: state.dreamLayer.visualStyle,
-      locationDescription: state.dreamLayer.locations[state.dreamLayer.currentLocationIndex]?.description || 'unknown location',
-      storyContext: state.currentStep.context,
-    });
-
-    res.json({ imageUrl });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown error';
-    res.status(500).json({ error: message });
-  }
 });
 
 export default router;

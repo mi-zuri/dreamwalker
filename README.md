@@ -2,7 +2,11 @@
 
 An AI-driven narrative RPG that generates an interactive dream in response to a single opening thought. A multi-agent system built on Google Gemini collaboratively writes the story, picks branching choices, illustrates each scene, and scores the emotional trajectory — all in real time.
 
-*Internet Applications course project.*
+---
+
+![main screen screenshot](docs/images/preview.png)
+
+---
 
 ## How it plays
 
@@ -11,7 +15,7 @@ An AI-driven narrative RPG that generates an interactive dream in response to a 
 3. A loop runs:
    - **Storyteller** writes the next 2–4 sentences of narrative.
    - **Brancher** surfaces 1–4 choices you can act on.
-   - **Judge** scores the scene on three psychological axes: *arousal*, *valence*, and *self-awareness* (lucidity).
+   - **Judge** scores the scene on three psychological axes: _arousal_, _valence_, and _self-awareness_ (lucidity).
    - **Director** paces the narrative — changing locations, triggering events, or ending the dream when metrics say you should wake.
 4. Scenes are illustrated with Gemini image generation; ambient music tracks your emotional state live via Lyria.
 
