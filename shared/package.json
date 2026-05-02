@@ -1,7 +1,0 @@
-{
-  "name": "dreamwalker-shared",
-  "type": "module",
-  "exports": {
-    "./*": "./*"
-  }
-}

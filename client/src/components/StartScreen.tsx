@@ -3,21 +3,14 @@ import { useState, useEffect } from "react";
 interface StartScreenProps {
   onStart: (initialThought?: string) => void;
   isLoading: boolean;
-  isWaitingForImage: boolean;
 }
 
-export function StartScreen({
-  onStart,
-  isLoading,
-  isWaitingForImage,
-}: StartScreenProps) {
+export function StartScreen({ onStart, isLoading }: StartScreenProps) {
   const [thought, setThought] = useState("");
   const [zText, setZText] = useState("z");
 
-  const loading = isLoading || isWaitingForImage;
-
   useEffect(() => {
-    if (!loading) return;
+    if (!isLoading) return;
     const frames = ["z", "zz", "zzz", "zzzz"];
     let i = 0;
     const interval = setInterval(() => {
@@ -25,7 +18,7 @@ export function StartScreen({
       setZText(frames[i]);
     }, 600);
     return () => clearInterval(interval);
-  }, [loading]);
+  }, [isLoading]);
 
   const handleStart = () => {
     onStart(thought.trim() || undefined);
@@ -42,7 +35,7 @@ export function StartScreen({
     <div className="h-screen flex items-center justify-center p-4 relative">
       <div className="starfield" />
 
-      {loading && (
+      {isLoading && (
         <div className="absolute inset-0 flex items-center justify-center z-20">
           <div className="relative">
             <div
@@ -59,7 +52,7 @@ export function StartScreen({
         </div>
       )}
 
-      {!loading && (
+      {!isLoading && (
         <div className="ascii-box p-6 max-w-md w-full relative z-10">
           <div className="text-center mb-6">
             <h1 className="text-indigo-400 text-2xl tracking-widest">

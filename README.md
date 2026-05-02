@@ -21,8 +21,8 @@ An AI-driven narrative RPG that generates an interactive dream in response to a 
 
 ## Stack
 
-- **Client** — React 19, Vite, TypeScript, Tailwind 4, Zustand
-- **Server** — Node.js, Express 5, WebSocket (`ws`), TypeScript
+- **Client** — React 19, Vite, TypeScript, Tailwind 4, Zustand (run with Bun)
+- **Server** — Bun, Express 5, WebSocket (`ws`), TypeScript
 - **AI** — Google Gemini (text, image, Lyria real-time music)
 - **Shared** — TypeScript types for game state, steps, metrics, and decisions
 

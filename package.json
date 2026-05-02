@@ -5,14 +5,13 @@
   "packageManager": "bun@1.3.13",
   "workspaces": [
     "client",
-    "server",
-    "shared"
+    "server"
   ],
   "scripts": {
-    "dev": "cd server && bun run dev & cd client && bun run dev & wait",
+    "dev": "(cd server && bun run dev) & (cd client && bun run dev) & wait",
     "dev:server": "cd server && bun run dev",
     "dev:client": "cd client && bun run dev",
     "test": "cd server && bun run test",
-    "build": "cd client && bun run build && cd server && bun run build"
+    "build": "(cd client && bun run build) && (cd server && bun run build)"
   }
 }

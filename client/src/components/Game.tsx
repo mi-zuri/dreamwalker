@@ -1,17 +1,13 @@
-import { useCallback, useState, useEffect } from 'react';
-import { useGameStore } from '../stores/gameStore';
-import { useAudioStream } from '../hooks/useAudioStream';
+import { useCallback, useState, useEffect, useRef } from 'react';
+import { useGameStore } from '../store';
+import { useAudioStream } from '../useAudioStream';
 import { MetricBar } from './MetricBar';
-import { DerivedMetrics } from './DerivedMetrics';
 import { WakeScreen } from './WakeScreen';
-import { TimedEvent } from './TimedEvent';
 import { SpatialMap } from './SpatialMap';
-import { StartScreen } from './StyleSelector';
+import { StartScreen } from './StartScreen';
 
 // Parse highlighted text markers and render with colors
-// [POI:text] - indigo for objectives
-// [LOC:text] - teal for locations
-// [KEY:text] - pink for key elements
+// [POI:text] indigo, [LOC:text] teal, [KEY:text] pink
 function renderHighlightedText(text: string): React.ReactNode[] {
   const pattern = /\[(POI|LOC|KEY):([^\]]+)\]/g;
   const parts: React.ReactNode[] = [];
@@ -20,33 +16,17 @@ function renderHighlightedText(text: string): React.ReactNode[] {
   let key = 0;
 
   while ((match = pattern.exec(text)) !== null) {
-    // Add text before the match
-    if (match.index > lastIndex) {
-      parts.push(text.slice(lastIndex, match.index));
-    }
-
-    // Add the highlighted span
+    if (match.index > lastIndex) parts.push(text.slice(lastIndex, match.index));
     const [, type, content] = match;
     const colorClass = {
       POI: 'text-indigo-400',
       LOC: 'text-teal-400',
       KEY: 'text-pink-400',
     }[type] || 'text-gray-200';
-
-    parts.push(
-      <span key={key++} className={colorClass}>
-        {content}
-      </span>
-    );
-
+    parts.push(<span key={key++} className={colorClass}>{content}</span>);
     lastIndex = match.index + match[0].length;
   }
-
-  // Add remaining text
-  if (lastIndex < text.length) {
-    parts.push(text.slice(lastIndex));
-  }
-
+  if (lastIndex < text.length) parts.push(text.slice(lastIndex));
   return parts.length > 0 ? parts : [text];
 }
 
@@ -56,7 +36,6 @@ export function Game() {
     gameState,
     derivedMetrics,
     currentStep,
-    attemptOutcome,
     isLoading,
     isGenerating,
     error,
@@ -68,32 +47,29 @@ export function Game() {
 
   const { resume: resumeAudio } = useAudioStream(sessionId);
   const [pendingThought, setPendingThought] = useState('');
-  const [hasGeneratedInitial, setHasGeneratedInitial] = useState(false);
-  const [hasStartedAudio, setHasStartedAudio] = useState(false);
+  const [showOutcome, setShowOutcome] = useState(false);
+  const audioStartedRef = useRef(false);
 
-  // After session starts, immediately generate first step
+  // Auto-generate first step once a session exists and nothing is in flight
   useEffect(() => {
-    // Don't auto-generate if we're in the middle of a decision (isLoading)
-    if (gameState && !currentStep && !isGenerating && !isLoading && !hasGeneratedInitial && !gameState.isAwake) {
-      setHasGeneratedInitial(true);
+    if (gameState && !currentStep && !isGenerating && !isLoading && !gameState.isAwake) {
       generateStep();
     }
-  }, [gameState, currentStep, isGenerating, isLoading, hasGeneratedInitial, generateStep]);
+  }, [gameState, currentStep, isGenerating, isLoading, generateStep]);
 
-  // Start audio only after first step generates (so scene data is ready)
+  // Start audio once first step has rendered
   useEffect(() => {
-    if (currentStep && !hasStartedAudio && !isGenerating) {
-      setHasStartedAudio(true);
+    if (currentStep && !audioStartedRef.current && !isGenerating) {
+      audioStartedRef.current = true;
       resumeAudio();
     }
-  }, [currentStep, hasStartedAudio, isGenerating, resumeAudio]);
+  }, [currentStep, isGenerating, resumeAudio]);
 
   const handleStart = useCallback(
     (initialThought?: string) => {
-      setHasGeneratedInitial(false);
-      setHasStartedAudio(false);
+      audioStartedRef.current = false;
+      setShowOutcome(false);
       startSession(initialThought);
-      // Audio will start after first step generates
     },
     [startSession]
   );
@@ -103,51 +79,28 @@ export function Game() {
       resumeAudio();
       const thought = pendingThought.trim();
       setPendingThought('');
-      await makeDecision(decisionId);
-      // After decision completes, generate next step with pending thought
-      if (thought) {
-        await generateStep(thought);
-      } else {
-        await generateStep();
+      setShowOutcome(false);
+      const result = await makeDecision(decisionId);
+      if (result) setShowOutcome(true);
+      if (result && !result.woke) {
+        await generateStep(thought || undefined);
       }
     },
     [makeDecision, resumeAudio, pendingThought, generateStep]
   );
 
-  // Show start screen if no game state exists
   if (!gameState) {
-    return (
-      <StartScreen
-        onStart={handleStart}
-        isLoading={isLoading}
-        isWaitingForImage={false}
-      />
-    );
+    return <StartScreen onStart={handleStart} isLoading={isLoading} />;
   }
 
-  // Calculate current location after we know gameState exists
   const currentLocation = gameState.dreamLayer.locations[gameState.dreamLayer.currentLocationIndex];
 
-  // Show wake screen if awake
   if (gameState.isAwake && gameState.wakeCause) {
-    return (
-      <WakeScreen
-        cause={gameState.wakeCause}
-        steps={gameState.dreamLayer.stepCount}
-        onRestart={reset}
-      />
-    );
+    return <WakeScreen cause={gameState.wakeCause} steps={gameState.dreamLayer.stepCount} onRestart={reset} />;
   }
 
-  // Show start screen with loading if waiting for first step
   if (!currentStep) {
-    return (
-      <StartScreen
-        onStart={handleStart}
-        isLoading={isLoading}
-        isWaitingForImage={true}
-      />
-    );
+    return <StartScreen onStart={handleStart} isLoading={true} />;
   }
 
   const { metrics, dreamLayer } = gameState;
@@ -159,6 +112,10 @@ export function Game() {
       .map(([k, v]) => `[${labels[k]}${v > 0 ? '+' : '-'}]`)
       .join(' ');
   };
+
+  const turbulence = derivedMetrics?.turbulence ?? 0;
+  const turbulenceHigh = turbulence > 60;
+  const turbulenceCritical = turbulence > 150;
 
   return (
     <div
@@ -178,10 +135,7 @@ export function Game() {
           <span className="text-gray-500 text-xs">
             step [{dreamLayer.stepCount}/{dreamLayer.maxSteps}]
           </span>
-          <button
-            onClick={reset}
-            className="ascii-btn px-2 py-1 text-xs text-gray-400 hover:text-white"
-          >
+          <button onClick={reset} className="ascii-btn px-2 py-1 text-xs text-gray-400 hover:text-white">
             [WAKE]
           </button>
         </div>
@@ -207,35 +161,36 @@ export function Game() {
                 className="w-full h-auto max-h-60 object-contain pixel-img opacity-90"
               />
             ) : (
-              <div className="text-gray-600 text-xs">
-                [no image]
-              </div>
+              <div className="text-gray-600 text-xs">[no image]</div>
             )}
           </div>
 
           {/* Metrics */}
           <div className="ascii-box p-3 flex-shrink-0">
             <div className="text-xs text-gray-500 mb-2">-- METRICS --</div>
-            <MetricBar label="ACT" value={metrics.arousal} color="#6366f1" showWarning />
-            <MetricBar label="EMO" value={metrics.valence} color="#ec4899" showWarning />
-            <MetricBar label="SC" value={metrics.selfAwareness} color="#14b8a6" showWarning />
+            <MetricBar label="ACT" value={metrics.arousal} color="#6366f1" />
+            <MetricBar label="EMO" value={metrics.valence} color="#ec4899" />
+            <MetricBar label="SC" value={metrics.selfAwareness} color="#14b8a6" />
             {derivedMetrics && (
-              <div className="mt-2 pt-2 border-t border-gray-800">
-                <DerivedMetrics luck={derivedMetrics.luck} turbulence={derivedMetrics.turbulence} />
+              <div className="mt-2 pt-2 border-t border-gray-800 flex gap-4 text-xs">
+                <div>
+                  <span className="text-gray-600">LUCK:</span>
+                  <span className="ml-1 text-blue-400">{Math.round(derivedMetrics.luck)}%</span>
+                </div>
+                {turbulenceHigh && (
+                  <div className={turbulenceCritical ? 'animate-pulse' : ''}>
+                    <span className="text-gray-600">TURB:</span>
+                    <span className={`ml-1 ${turbulenceCritical ? 'text-red-400' : 'text-orange-400'}`}>
+                      {Math.round(turbulence)}
+                    </span>
+                  </div>
+                )}
               </div>
             )}
           </div>
 
-          {/* POI */}
           <div className="ascii-box p-2 flex-shrink-0">
-            {dreamLayer.poi ? (
-              <>
-                <div className="text-xs text-indigo-400 uppercase">{dreamLayer.poi.type}</div>
-                <div className="text-xs text-gray-300 mt-1">{dreamLayer.poi.description}</div>
-              </>
-            ) : (
-              <div className="text-xs text-gray-500 animate-pulse">discovering purpose...</div>
-            )}
+            <div className="text-xs text-gray-500 animate-pulse">discovering purpose...</div>
           </div>
 
           {/* Spatial Map */}
@@ -246,20 +201,12 @@ export function Game() {
 
         {/* Right column - scrollable */}
         <div className="ascii-box p-3 flex flex-col min-h-0 overflow-hidden">
-          {/* Risky Outcome */}
-          {attemptOutcome && (
-            <div
-              className={`ascii-box p-2 mb-3 flex-shrink-0 ${
-                attemptOutcome.success ? 'border-green-700' : 'border-red-700'
-              }`}
-            >
-              <span className={`text-xs ${attemptOutcome.success ? 'text-green-400' : 'text-red-400'}`}>
-                {attemptOutcome.success ? '>> SUCCESS' : '>> FAILED'}
-              </span>
+          {showOutcome && (
+            <div className="ascii-box p-2 mb-3 flex-shrink-0 border-green-700">
+              <span className="text-xs text-green-400">{'>> SUCCESS'}</span>
             </div>
           )}
 
-          {/* Step Content */}
           {isGenerating ? (
             <div className="flex items-center gap-2 text-gray-500 text-sm">
               <span className="animate-pulse">...</span>
@@ -267,64 +214,38 @@ export function Game() {
             </div>
           ) : currentStep ? (
             <div className="flex flex-col min-h-0 overflow-hidden">
-              {/* Context with highlighted text */}
               <div className="text-gray-200 text-sm leading-relaxed mb-4 flex-shrink-0">
                 {renderHighlightedText(currentStep.context)}
               </div>
 
-              {/* Decisions - scrollable */}
               <div className="flex-1 overflow-y-auto min-h-0 space-y-2">
-                {currentStep.isTimed && currentStep.timedDeadline ? (
-                  <TimedEvent
-                    decisions={currentStep.decisions}
-                    deadline={currentStep.timedDeadline}
-                    onDecision={handleDecision}
-                  />
-                ) : (
-                  <>
-                    {currentStep.decisions.map((decision, i) => {
-                      const isRisky = decision.successChance < 1;
-                      return (
-                        <button
-                          key={decision.id}
-                          onClick={() => handleDecision(decision.id)}
-                          disabled={isLoading}
-                          className={`ascii-btn w-full p-2 text-left text-sm ${
-                            isRisky ? 'border-yellow-900/50' : ''
-                          }`}
-                        >
-                          <span className={isRisky ? 'text-yellow-500' : 'text-indigo-400'}>
-                            [{i + 1}]
-                          </span>{' '}
-                          <span className={isRisky ? 'text-yellow-100' : 'text-gray-200'}>
-                            {decision.text}
-                          </span>
-                          <span className={`block text-xs mt-1 ml-4 ${
-                            isRisky ? 'text-yellow-700' : 'text-gray-600'
-                          }`}>
-                            {isRisky
-                              ? `${Math.round(decision.successChance * 100)}% chance`
-                              : getEffectIndicator(decision.successEffects)}
-                          </span>
-                        </button>
-                      );
-                    })}
+                {currentStep.decisions.map((decision, i) => (
+                  <button
+                    key={decision.id}
+                    onClick={() => handleDecision(decision.id)}
+                    disabled={isLoading}
+                    className="ascii-btn w-full p-2 text-left text-sm"
+                  >
+                    <span className="text-indigo-400">[{i + 1}]</span>{' '}
+                    <span className="text-gray-200">{decision.text}</span>
+                    <span className="block text-xs mt-1 ml-4 text-gray-600">
+                      {getEffectIndicator(decision.effects)}
+                    </span>
+                  </button>
+                ))}
 
-                    {/* Thought input under choices */}
-                    <div className="mt-4 pt-3 border-t border-gray-800">
-                      <input
-                        type="text"
-                        value={pendingThought}
-                        onChange={(e) => setPendingThought(e.target.value)}
-                        placeholder="any thoughts?"
-                        className="w-full bg-transparent border border-gray-700 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-indigo-500 focus:outline-none"
-                      />
-                      <div className="text-xs text-gray-600 mt-1">
-                        (optional - influences next scene)
-                      </div>
-                    </div>
-                  </>
-                )}
+                <div className="mt-4 pt-3 border-t border-gray-800">
+                  <input
+                    type="text"
+                    value={pendingThought}
+                    onChange={(e) => setPendingThought(e.target.value)}
+                    placeholder="any thoughts?"
+                    className="w-full bg-transparent border border-gray-700 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-indigo-500 focus:outline-none"
+                  />
+                  <div className="text-xs text-gray-600 mt-1">
+                    (optional - influences next scene)
+                  </div>
+                </div>
               </div>
             </div>
           ) : (

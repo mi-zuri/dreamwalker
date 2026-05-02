@@ -1,64 +1,26 @@
-import { Router, type Router as ExpressRouter } from "express";
-import { getCachedImage, getCachedAudio } from "../services/cache.js";
+import { Router, type Router as ExpressRouter, type Request, type Response } from "express";
+import fs from "fs/promises";
+import { getCachedMedia, type MediaKind } from "../services/cache.js";
 
 const router: ExpressRouter = Router();
 
-// GET /api/media/images/:key - Serve cached images
-router.get("/images/:key", async (req, res) => {
-  const { key } = req.params;
-
-  if (!key || !/^[a-f0-9]{64}$/.test(key)) {
-    res.status(400).json({ error: "Invalid image key" });
+async function serve(kind: MediaKind, contentType: string, req: Request, res: Response) {
+  const key = req.params.key as string;
+  if (!/^[a-f0-9]{64}$/.test(key)) {
+    res.status(400).json({ error: `Invalid ${kind} key` });
     return;
   }
-
-  try {
-    const filePath = await getCachedImage(key);
-
-    if (!filePath) {
-      res.status(404).json({ error: "Image not found or expired" });
-      return;
-    }
-
-    // Read and send file manually to avoid sendFile path issues
-    const fs = await import("fs/promises");
-    const fileBuffer = await fs.readFile(filePath);
-    res.setHeader("Cache-Control", "public, max-age=86400");
-    res.setHeader("Content-Type", "image/png");
-    res.send(fileBuffer);
-  } catch (error) {
-    console.error("Error serving image:", error);
-    res.status(500).json({ error: "Failed to serve image" });
-  }
-});
-
-// GET /api/media/audio/:key - Serve cached audio
-router.get("/audio/:key", async (req, res) => {
-  const { key } = req.params;
-
-  if (!key || !/^[a-f0-9]{64}$/.test(key)) {
-    res.status(400).json({ error: "Invalid audio key" });
+  const filePath = await getCachedMedia(kind, key);
+  if (!filePath) {
+    res.status(404).json({ error: `${kind} not found or expired` });
     return;
   }
+  res.setHeader("Cache-Control", "public, max-age=86400");
+  res.setHeader("Content-Type", contentType);
+  res.send(await fs.readFile(filePath));
+}
 
-  try {
-    const filePath = await getCachedAudio(key);
-
-    if (!filePath) {
-      res.status(404).json({ error: "Audio not found or expired" });
-      return;
-    }
-
-    // Read and send file manually
-    const fs = await import("fs/promises");
-    const fileBuffer = await fs.readFile(filePath);
-    res.setHeader("Cache-Control", "public, max-age=86400");
-    res.setHeader("Content-Type", "audio/mpeg");
-    res.send(fileBuffer);
-  } catch (error) {
-    console.error("Error serving audio:", error);
-    res.status(500).json({ error: "Failed to serve audio" });
-  }
-});
+router.get("/images/:key", (req, res) => serve("image", "image/png", req, res));
+router.get("/audio/:key", (req, res) => serve("audio", "audio/mpeg", req, res));
 
 export default router;

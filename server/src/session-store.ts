@@ -26,10 +26,6 @@ export function deleteSession(id: string): boolean {
   return sessions.delete(id);
 }
 
-export function hasSession(id: string): boolean {
-  return sessions.has(id);
-}
-
 export function cleanupExpiredSessions(): number {
   const now = Date.now();
   let cleaned = 0;
