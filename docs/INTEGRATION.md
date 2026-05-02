@@ -275,7 +275,7 @@ PORT=3001
 ```bash
 # 1. Start server
 cd server
-npm run dev
+bun run dev
 
 # 2. Create session
 curl -X POST http://localhost:3001/api/session \

@@ -149,7 +149,7 @@
 ## Verification
 
 Per phase:
-1. `npm test` — unit tests pass
+1. `bun run test` — unit tests pass
 2. Manual 1-layer playthrough
 3. Metrics behave per formulas
 4. AI returns valid JSON

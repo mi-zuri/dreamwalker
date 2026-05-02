@@ -31,12 +31,12 @@ Monorepo: `client/`, `server/`, `shared/`.
 ## Run it
 
 ```bash
-npm install
-npm run dev          # starts client + server together
-npm run dev:client   # client only (Vite)
-npm run dev:server   # server only (tsx watch)
-npm run build
-npm test
+bun install
+bun run dev          # starts client + server together
+bun run dev:client   # client only (Vite)
+bun run dev:server   # server only (Bun watch)
+bun run build
+bun run test
 ```
 
 ## Environment

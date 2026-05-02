@@ -1,4 +1,3 @@
-import { todo } from 'node:test';
 import type { Metrics, DerivedMetrics } from '../../../shared/types.js';
 
 const DRIFT_PER_STEP = 5;
