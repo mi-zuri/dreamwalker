@@ -8,6 +8,7 @@ import type {
   Step,
 } from '../../../shared/types.js';
 import { generateSceneImage } from './image.js';
+import { logAI } from './ai-log.js';
 
 const ai = new GoogleGenAI({ apiKey: process.env.GOOGLE_API_KEY! });
 const MODEL = 'gemini-3.1-flash-lite-preview';
@@ -72,6 +73,7 @@ function recentSummary(state: GameState): string {
 }
 
 async function callGemini<T>(
+  label: string,
   prompt: string,
   schema: object,
   chat?: { systemPrompt: string; history: ConversationMessage[] },
@@ -95,6 +97,11 @@ async function callGemini<T>(
     },
   });
   const rawText = response.text ?? '';
+  logAI(
+    label,
+    chat ? { systemPrompt: chat.systemPrompt, historyLen: chat.history.length, prompt } : prompt,
+    rawText,
+  );
   return { result: JSON.parse(rawText) as T, rawText };
 }
 
@@ -104,7 +111,7 @@ async function runInitiator(userThought: string): Promise<InitiatorOutput> {
   const prompt = `Create a dream world from this thought. Every field must reflect it.
 THOUGHT: "${userThought}"
 Fields: world (~100 words: rules, atmosphere, physics), writingStyle, visualStyle, audioStyle.`;
-  const { result } = await callGemini<InitiatorOutput>(prompt, INITIATOR_SCHEMA);
+  const { result } = await callGemini<InitiatorOutput>('initiator', prompt, INITIATOR_SCHEMA);
   return result;
 }
 
@@ -122,7 +129,7 @@ Style: ${state.dreamLayer.writingStyle}${directorGuidance ? `\nDirector: ${direc
   if (imaginedElement) userPrompt += `\nThe player imagines: "${imaginedElement}"`;
 
   const { result, rawText } = await callGemini<{ text: string }>(
-    userPrompt, STORYTELLER_SCHEMA, { systemPrompt, history: trimmedHistory },
+    'storyteller', userPrompt, STORYTELLER_SCHEMA, { systemPrompt, history: trimmedHistory },
   );
 
   const updatedHistory: ConversationMessage[] = [
@@ -138,7 +145,7 @@ async function runBrancher(state: GameState, lastStoryText: string): Promise<Cho
 Recent:
 ${recentSummary(state)}
 Scene: ${lastStoryText}`;
-  const { result } = await callGemini<{ choices: Choice[] }>(prompt, BRANCHER_SCHEMA);
+  const { result } = await callGemini<{ choices: Choice[] }>('brancher', prompt, BRANCHER_SCHEMA);
   return result.choices;
 }
 
@@ -152,7 +159,7 @@ EVENT: ${storyText}
 CHOICES:
 ${choicesText}
 Return one entry in choices[] per choice (${choices.length} total).`;
-  const { result } = await callGemini<JudgeOutput>(prompt, JUDGE_SCHEMA);
+  const { result } = await callGemini<JudgeOutput>('judge', prompt, JUDGE_SCHEMA);
   return result;
 }
 
@@ -174,7 +181,7 @@ Last event: ${storytellerOutput} (a:${judgeOutput.event.arousal} v:${judgeOutput
 Choices:
 ${choicesWithMetrics}
 User chose: "${userChoice.text}"`;
-  const { result } = await callGemini<DirectorOutput>(prompt, DIRECTOR_SCHEMA);
+  const { result } = await callGemini<DirectorOutput>('director', prompt, DIRECTOR_SCHEMA);
   return result;
 }
 

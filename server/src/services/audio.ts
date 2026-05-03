@@ -1,5 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 import type { WebSocket } from 'ws';
+import { logAI } from './ai-log.js';
 
 const client = new GoogleGenAI({
   apiKey: process.env.GOOGLE_API_KEY || '',
@@ -18,6 +19,7 @@ interface AudioSession {
   clientSocket: WebSocket;
   isActive: boolean;
   lyriaSession?: any;
+  lastPromptText?: string;
 }
 
 const activeSessions = new Map<string, AudioSession>();
@@ -67,6 +69,8 @@ export async function startAudioStream(
       musicGenerationConfig: { bpm: params.bpm, temperature: 1.0 },
     });
     lyriaSession.play();
+    session.lastPromptText = promptText;
+    logAI('audio:start', { promptText, bpm: params.bpm }, '<lyria stream open>');
   } catch (error) {
     console.error(`Lyria error: ${error instanceof Error ? error.message : 'Unknown'}`);
     session.isActive = false;
@@ -132,6 +136,8 @@ export async function updateAudioPrompt(
   const contextHint = storyContext ? `. Scene: ${storyContext.substring(0, 100)}` : '';
   const promptText = `${audioStyle}. ${description}. Dreamlike ambient music${contextHint}`;
 
+  if (promptText === session.lastPromptText) return;
+
   try {
     await session.lyriaSession.setWeightedPrompts({ weightedPrompts: [{ text: promptText, weight: 1.0 }] });
     if (Math.abs(bpm - session.params.bpm) > 5) {
@@ -141,6 +147,8 @@ export async function updateAudioPrompt(
       session.params.bpm = bpm;
     }
     session.params.audioStyle = audioStyle;
+    session.lastPromptText = promptText;
+    logAI('audio:update', { promptText, bpm }, '<prompt updated>');
   } catch (error) {
     console.error(`Failed to update audio prompt: ${error instanceof Error ? error.message : 'Unknown'}`);
   }

@@ -103,7 +103,6 @@ router.post("/:id/decide", (req, res) => {
 
   advanceStep(state);
   setSession(id, state);
-  refreshAudio(id, state);
 
   res.json({
     appliedEffects: result.appliedEffects,
