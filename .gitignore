@@ -31,3 +31,6 @@ Thumbs.db
 # Project-specific
 CLAUDE.md
 .claude/
+
+# Playwright MCP scratch output
+.playwright-mcp/

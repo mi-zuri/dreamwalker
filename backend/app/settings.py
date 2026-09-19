@@ -1,0 +1,26 @@
+from typing import Literal
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class Settings(BaseSettings):
+    model_config = SettingsConfigDict(env_file=".env", extra="ignore")
+
+    # Vertex AI serves text and images; see docs/architecture.md.
+    gcp_project: str = ""
+    gcp_location: str = "europe-central2"
+    text_model: str = "gemini-3.5-flash-lite"
+    image_model: str = "gemini-3.1-flash-lite-image"
+
+    # Lyria RealTime is Gemini-API-only, so the music proxy needs its own key.
+    gemini_api_key: str = ""
+    music_model: str = "models/lyria-realtime-exp"
+    music_mode: Literal["realtime", "loops"] = "realtime"
+
+    # "mock" replays recorded fixtures and spends nothing.
+    llm_mode: Literal["live", "mock"] = "mock"
+
+    cors_origins: list[str] = ["http://localhost:5173", "http://localhost:5174"]
+
+
+settings = Settings()
