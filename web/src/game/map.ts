@@ -77,3 +77,21 @@ export function pathTo(map: GameMap, from: Pos, to: Pos, unlocked: string[]): Po
   }
   return [];
 }
+
+/** Every tile currently walkable from `from`, honouring locked doors. */
+export function reachableFrom(map: GameMap, from: Pos, unlocked: string[]): Set<string> {
+  const key = (p: Pos) => `${p.x},${p.y}`;
+  const seen = new Set<string>([key(from)]);
+  const queue: Pos[] = [from];
+  while (queue.length) {
+    const cur = queue.shift()!;
+    for (const s of STEPS) {
+      const next = { x: cur.x + s.x, y: cur.y + s.y };
+      const k = key(next);
+      if (seen.has(k) || !isWalkable(map, next, unlocked)) continue;
+      seen.add(k);
+      queue.push(next);
+    }
+  }
+  return seen;
+}

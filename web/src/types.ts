@@ -86,9 +86,13 @@ export interface BeatProgress {
   status: BeatStatus;
 }
 
+/** Travel shows the full map; scene shows the location's text and choices. */
+export type View = 'travel' | 'scene';
+
 export interface GameState {
   game_id: string;
   mode: Mode;
+  view: View;
   region?: Region;
   story_language: Language;
   ui_language: Language;

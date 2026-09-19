@@ -2,7 +2,7 @@ import type { MockGame } from '../types';
 import { mapNews, startPos } from '../maps';
 import { placeholderImage } from '../placeholder';
 
-const map = mapNews(['Punkt zbiórki', 'Wał przeciwpowodziowy', 'Szkoła', 'Most']);
+const map = mapNews(['Punkt zbiórki', 'Wał przeciwpowodziowy', 'Szkoła', 'Most', 'Świetlica']);
 
 /** Safe-mode fixture: a disaster, played as a volunteer, with a content note. */
 export const newsPl: MockGame = {
@@ -11,6 +11,7 @@ export const newsPl: MockGame = {
   state: {
     game_id: 'mock-news-pl',
     mode: 'news',
+    view: 'scene',
     region: 'pl',
     story_language: 'pl',
     ui_language: 'pl',
@@ -49,6 +50,7 @@ export const newsPl: MockGame = {
       { beat_id: 'b2', status: 'pending' },
       { beat_id: 'b3', status: 'pending' },
       { beat_id: 'b4', status: 'pending' },
+      { beat_id: 'b5', status: 'pending' },
     ],
     divergence: 0,
     turn: 0,
@@ -93,6 +95,16 @@ export const newsPl: MockGame = {
         'ogrodzie. Most jest zamknięty. Po drugiej stronie też ktoś czeka.',
       image_url: placeholderImage('pl-d', 'rust'),
     },
+    'loc-e': {
+      id: 'sc-e',
+      location_id: 'loc-e',
+      text:
+        'W [LOC:świetlicy] ktoś rozstawił stoły i postawił na nich wszystko, co przywieźli ludzie ' +
+        'z sąsiednich wsi: koce, wodę, karmę, dwie paczki pieluch. Nikt tego nie koordynuje. ' +
+        'Działa i tak. Na drzwiach wisi kartka: [KEY:„nie pytamy, czyje. bierzemy, co trzeba”.]',
+      image_url: placeholderImage('pl-e', 'moss'),
+      image_credit: { source_url: 'https://example.org/press/swietlica', credit: 'PAP / zdjęcie archiwalne' },
+    },
   },
   choices: {
     'loc-a': [
@@ -115,6 +127,11 @@ export const newsPl: MockGame = {
       { id: 'd2', text: 'Szukać objazdu dla dostaw' },
       { id: 'd3', text: 'Zostać i pomagać przy zawracaniu aut' },
     ],
+    'loc-e': [
+      { id: 'e1', text: 'Spisać, czego brakuje' },
+      { id: 'e2', text: 'Rozwozić dalej bez liczenia' },
+      { id: 'e3', text: 'Usiąść na dziesięć minut' },
+    ],
   },
   openQuestionAt: 'loc-c',
   ending: {
@@ -130,12 +147,14 @@ export const newsPl: MockGame = {
       { id: 'b2', title: 'Wzmacnianie wału', summary: 'Ochotnicy i straż układali worki z piaskiem przez kilkanaście godzin.', sources: ['https://example.org/pl-a', 'https://example.org/pl-b'] },
       { id: 'b3', title: 'Punkt w szkole', summary: 'W szkole uruchomiono punkt dla ewakuowanych, w tym miejsce dla zwierząt.', sources: ['https://example.org/pl-b'] },
       { id: 'b4', title: 'Most zamknięty', summary: 'Przeprawę zamknięto do czasu opadnięcia wody.', sources: ['https://example.org/pl-c'] },
+      { id: 'b5', title: 'Zbiórka darów', summary: 'W świetlicy zorganizowano punkt wydawania darów od mieszkańców okolicznych wsi.', sources: ['https://example.org/pl-b'] },
     ],
     player: [
       { beat_id: 'b1', status: 'matched', what_you_did: 'Zgłosiłeś się od razu i spytałeś, czego brakuje.' },
       { beat_id: 'b2', status: 'matched', what_you_did: 'Pracowałeś na wale i zgłosiłeś brak worków.' },
       { beat_id: 'b3', status: 'matched', what_you_did: 'Zorganizowałeś kąt dla zwierząt w szkole.' },
       { beat_id: 'b4', status: 'diverged', what_you_did: 'Zamiast wracać, szukałeś objazdu dla dostaw.' },
+      { beat_id: 'b5', status: 'matched', what_you_did: 'Spisałeś, czego brakuje w świetlicy.' },
     ],
     style_card: {
       genre: 'documentary',

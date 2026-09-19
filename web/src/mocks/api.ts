@@ -123,6 +123,7 @@ export async function move(id: string, to: Pos): Promise<GameState> {
     if (scene) {
       state.current_scene = scene;
       const done = state.resolved.includes(dest.key);
+      state.view = done ? 'travel' : 'scene';
       state.choices = done ? [] : (fixture.choices[dest.location_id] ?? []);
       state.open_question =
         !done && fixture.openQuestionAt === dest.location_id
@@ -166,6 +167,8 @@ export async function choose(id: string, choiceId: string): Promise<GameState> {
 
   if (state.resolved.length >= state.map.destinations.length) {
     state.finished = true;
+  } else {
+    state.view = 'travel';
   }
   return structuredClone(state);
 }
@@ -218,4 +221,12 @@ export async function getReplay(id: string): Promise<Replay> {
   const fixture =
     FIXTURES.find((f) => f.id === id) ?? live.get(id)?.fixture ?? FIXTURES[0];
   return structuredClone(fixture.replay);
+}
+
+/** Leaves the current scene and returns to the map. */
+export async function setOff(id: string): Promise<GameState> {
+  await sleep(60);
+  const { state } = requireGame(id);
+  state.view = 'travel';
+  return structuredClone(state);
 }

@@ -2,7 +2,7 @@ import type { MockGame } from '../types';
 import { mapIdea, startPos } from '../maps';
 import { placeholderImage } from '../placeholder';
 
-const map = mapIdea(['Przedni wagon', 'Zajezdnia', 'Przystanek Zapomniany', 'Kabina motorniczego']);
+const map = mapIdea(['Przedni wagon', 'Zajezdnia', 'Przystanek Zapomniany', 'Kabina motorniczego', 'Biuro rzeczy znalezionych']);
 
 export const ideaPl: MockGame = {
   id: 'mock-idea-pl',
@@ -15,6 +15,7 @@ export const ideaPl: MockGame = {
   state: {
     game_id: 'mock-idea-pl',
     mode: 'idea',
+    view: 'scene',
     story_language: 'pl',
     ui_language: 'pl',
     safety_class: 'allowed',
@@ -47,6 +48,7 @@ export const ideaPl: MockGame = {
       { beat_id: 'b2', status: 'pending' },
       { beat_id: 'b3', status: 'pending' },
       { beat_id: 'b4', status: 'pending' },
+      { beat_id: 'b5', status: 'pending' },
     ],
     divergence: 0,
     turn: 0,
@@ -89,6 +91,15 @@ export const ideaPl: MockGame = {
         'kiedy patrzyłem, było 6140.',
       image_url: placeholderImage('idea-pl-d', 'moss'),
     },
+    'loc-e': {
+      id: 'sc-e',
+      location_id: 'loc-e',
+      text:
+        '[LOC:Biuro rzeczy znalezionych] jest czynne, co o tej porze uznałem za nadużycie. Na ' +
+        'półkach stoją parasole, jedna proteza i czterdzieści identycznych notesów. Pani za ladą ' +
+        'spytała o numer kursu, a kiedy podałem, westchnęła i sięgnęła po [KEY:notes numer 6142].',
+      image_url: placeholderImage('idea-pl-e', 'dusk'),
+    },
   },
   choices: {
     'loc-a': [
@@ -111,6 +122,11 @@ export const ideaPl: MockGame = {
       { id: 'd2', text: 'Włożyć kurtkę' },
       { id: 'd3', text: 'Wyrwać stronę z notesu' },
     ],
+    'loc-e': [
+      { id: 'e1', text: 'Wziąć notes i nie otwierać' },
+      { id: 'e2', text: 'Przeczytać ostatnią stronę' },
+      { id: 'e3', text: 'Zostawić go na półce' },
+    ],
   },
   openQuestionAt: 'loc-c',
   ending: {
@@ -127,6 +143,7 @@ export const ideaPl: MockGame = {
       { beat_id: 'b2', status: 'diverged', what_you_did: 'Zamknąłeś bramę zajezdni.' },
       { beat_id: 'b3', status: 'matched', what_you_did: 'Dopisałeś własną godzinę i zabrałeś rozkład.' },
       { beat_id: 'b4', status: 'matched', what_you_did: 'Dopisałeś 6142 i wysiadłeś.' },
+      { beat_id: 'b5', status: 'diverged', what_you_did: 'Przeczytałeś ostatnią stronę notesu.' },
     ],
     style_card: {
       genre: 'absurdist',

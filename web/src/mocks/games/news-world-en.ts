@@ -2,7 +2,7 @@ import type { MockGame } from '../types';
 import { mapNews, startPos } from '../maps';
 import { placeholderImage } from '../placeholder';
 
-const map = mapNews(['Launch Control', 'Tower Base', 'Press Pen', 'Recovery Bay']);
+const map = mapNews(['Launch Control', 'Tower Base', 'Press Pen', 'Recovery Bay', 'The Berm']);
 
 export const newsWorldEn: MockGame = {
   id: 'mock-news-world-en',
@@ -10,6 +10,7 @@ export const newsWorldEn: MockGame = {
   state: {
     game_id: 'mock-news-world-en',
     mode: 'news',
+    view: 'scene',
     region: 'world',
     story_language: 'en',
     ui_language: 'en',
@@ -45,6 +46,7 @@ export const newsWorldEn: MockGame = {
       { beat_id: 'b2', status: 'pending' },
       { beat_id: 'b3', status: 'pending' },
       { beat_id: 'b4', status: 'pending' },
+      { beat_id: 'b5', status: 'pending' },
     ],
     divergence: 0,
     turn: 0,
@@ -90,6 +92,15 @@ export const newsWorldEn: MockGame = {
         'to sign the sheet that says the vehicle is safed. The pen is in your hand.',
       image_url: placeholderImage('world-d', 'moss'),
     },
+    'loc-e': {
+      id: 'sc-e',
+      location_id: 'loc-e',
+      text:
+        'The [LOC:berm] is the last place anyone stands before the pad becomes the pad. From up ' +
+        'here the whole site is laid out like a diagram of itself. Someone has left a folding ' +
+        'chair facing the tower, which is either sentiment or a very long shift.',
+      image_url: placeholderImage('world-e', 'dusk'),
+    },
   },
   choices: {
     'loc-a': [
@@ -112,6 +123,11 @@ export const newsWorldEn: MockGame = {
       { id: 'd2', text: 'Walk the vehicle one more time first' },
       { id: 'd3', text: 'Refuse until the vent cycle completes' },
     ],
+    'loc-e': [
+      { id: 'e1', text: 'Sit in the chair a while' },
+      { id: 'e2', text: 'Log the debris you can see' },
+      { id: 'e3', text: 'Call it a day and go home' },
+    ],
   },
   openQuestionAt: 'loc-c',
   ending: {
@@ -128,12 +144,14 @@ export const newsWorldEn: MockGame = {
       { id: 'b2', title: 'Boostback burn nominal', summary: 'The booster turned and burned back toward the pad on schedule.', sources: ['https://example.org/b'] },
       { id: 'b3', title: 'Tower catch succeeds', summary: 'The arms took the booster cleanly on the third attempt in the programme.', sources: ['https://example.org/b', 'https://example.org/c'] },
       { id: 'b4', title: 'Vehicle safed after extended vent', summary: 'Safing ran long; residual pressure delayed the sign-off.', sources: ['https://example.org/c'] },
+      { id: 'b5', title: 'Site cleared for the next stack', summary: 'The pad was walked, debris logged, and the site handed to the next crew.', sources: ['https://example.org/c'] },
     ],
     player: [
       { beat_id: 'b1', status: 'matched', what_you_did: 'You flagged the wind and deferred to the flight director.' },
       { beat_id: 'b2', status: 'matched', what_you_did: 'You called the arm alignment from the tower base.' },
       { beat_id: 'b3', status: 'matched', what_you_did: 'You held position and watched it come down.' },
       { beat_id: 'b4', status: 'diverged', what_you_did: 'You refused to sign until the vent cycle finished.' },
+      { beat_id: 'b5', status: 'matched', what_you_did: 'You logged the debris from the berm before leaving.' },
     ],
     style_card: {
       genre: 'procedural',

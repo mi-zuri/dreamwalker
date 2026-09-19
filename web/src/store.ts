@@ -61,6 +61,7 @@ interface AppStore {
   moveTo: (pos: Pos) => Promise<void>;
   choose: (choiceId: string) => Promise<void>;
   answer: (text: string) => Promise<void>;
+  setOff: () => Promise<void>;
   openLibrary: () => Promise<void>;
   openReplay: (gameId: string) => Promise<void>;
   setReplayIndex: (i: number) => void;
@@ -179,6 +180,12 @@ export const useStore = create<AppStore>((set, get) => ({
     } catch (e) {
       set({ error: toAppError(e), screen: 'error', busy: false });
     }
+  },
+
+  setOff: async () => {
+    const game = get().game;
+    if (!game) return;
+    set({ game: await api.setOff(game.game_id) });
   },
 
   openLibrary: async () => {

@@ -2,7 +2,7 @@ import type { MockGame } from '../types';
 import { mapIdea, startPos } from '../maps';
 import { placeholderImage } from '../placeholder';
 
-const map = mapIdea(['The Lamp Room', 'The Jetty', "Postmaster's Hut", 'The Cellar']);
+const map = mapIdea(['The Lamp Room', 'The Jetty', "Postmaster's Hut", 'The Cellar', 'The Tide Line']);
 
 export const ideaEn: MockGame = {
   id: 'mock-idea-en',
@@ -15,6 +15,7 @@ export const ideaEn: MockGame = {
   state: {
     game_id: 'mock-idea-en',
     mode: 'idea',
+    view: 'scene',
     story_language: 'en',
     ui_language: 'en',
     safety_class: 'allowed',
@@ -47,6 +48,7 @@ export const ideaEn: MockGame = {
       { beat_id: 'b2', status: 'pending' },
       { beat_id: 'b3', status: 'pending' },
       { beat_id: 'b4', status: 'pending' },
+      { beat_id: 'b5', status: 'pending' },
     ],
     divergence: 0,
     turn: 0,
@@ -89,6 +91,15 @@ export const ideaEn: MockGame = {
         'the outermost one is unmistakably, impossibly, your own.',
       image_url: placeholderImage('idea-en-d', 'ash'),
     },
+    'loc-e': {
+      id: 'sc-e',
+      location_id: 'loc-e',
+      text:
+        'At the [LOC:tide line] the sea has arranged the night\'s losses in a neat grey row, the ' +
+        'way it always does. Among the kelp there is a postbag, canvas gone stiff with salt, the ' +
+        'buckle still shut. It is not this year\'s. It is not this century\'s.',
+      image_url: placeholderImage('idea-en-e', 'moss'),
+    },
   },
   choices: {
     'loc-a': [
@@ -111,6 +122,11 @@ export const ideaEn: MockGame = {
       { id: 'd2', text: 'Put the coal back exactly as it was' },
       { id: 'd3', text: 'Carry both tins up to the light' },
     ],
+    'loc-e': [
+      { id: 'e1', text: 'Open the bag here, in the wind' },
+      { id: 'e2', text: 'Carry it up unopened' },
+      { id: 'e3', text: 'Put it back where the sea left it' },
+    ],
   },
   openQuestionAt: 'loc-a',
   ending: {
@@ -127,6 +143,7 @@ export const ideaEn: MockGame = {
       { beat_id: 'b2', status: 'matched', what_you_did: 'You took the weighted letter off the jetty.' },
       { beat_id: 'b3', status: 'diverged', what_you_did: 'You asked why the postmaster keeps count.' },
       { beat_id: 'b4', status: 'matched', what_you_did: 'You carried both tins up to the light.' },
+      { beat_id: 'b5', status: 'matched', what_you_did: 'You carried the sea-found postbag up unopened.' },
     ],
     style_card: {
       genre: 'folk_tale',
