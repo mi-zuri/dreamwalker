@@ -110,16 +110,18 @@ DW_NUMBER=$(gcloud projects describe $DW_PROJECT --format="value(projectNumber)"
 gcloud billing budgets create \
   --billing-account=01C6F0-6B1488-53CEC3 \
   --display-name="Dreamwalker" \
-  --budget-amount=20USD \
+  --budget-amount=80PLN \
   --filter-projects="projects/$DW_NUMBER" \
   --threshold-rule=percent=0.5 \
   --threshold-rule=percent=0.9 \
   --threshold-rule=percent=1.0
 ```
 
-The filter needs the project *number*, not its id, which is why `DW_NUMBER` is
-looked up first. You get email at 50%, 90% and 100% of $20/month, scoped to
-this project only. A budget **alerts, it does not cap** — the hard spending
+**The currency must match the billing account**, which for
+`01C6F0-6B1488-53CEC3` is PLN. Passing `20USD` fails with a bare
+`INVALID_ARGUMENT` that does not mention currency. The filter needs the project
+*number*, not its id, which is why `DW_NUMBER` is looked up first. You get email
+at 50%, 90% and 100% of the monthly amount, scoped to this project only. A budget **alerts, it does not cap** — the hard spending
 limits are the per-user and per-day caps built into the app itself.
 
 ---
@@ -191,6 +193,10 @@ gcloud services list --enabled --project=$DW_PROJECT | grep -E "aiplatform|fires
 gcloud firestore databases create --location=eur3 --project=$DW_PROJECT
 ```
 
+If you skipped 4a, this command offers to enable the Firestore API and then
+carries on — which quietly leaves `aiplatform` (Vertex AI) disabled, so the
+model checks in step 6 fail. Run 4a either way.
+
 `eur3` is the Europe multi-region. **This is permanent** — the location and the
 mode cannot be changed afterwards, only deleted and recreated. The default
 `--type` is `firestore-native`, which is what we want; do not pass
@@ -219,6 +225,10 @@ recommendation and simpler to reason about.
 cd "/Users/michu/VSCode Projects/dreamwalker/backend"
 cp .env.example .env
 ```
+
+**Do this before the next command.** `>>` creates the file if it is missing, so
+copying the key first leaves an `.env` holding only the key, and step 6 then
+fails with `GCP_PROJECT unset`.
 
 Copy your existing Gemini key across without ever printing it — it is only
 needed for Lyria, which is not on Vertex AI:
@@ -358,7 +368,7 @@ DW_NUMBER=$(gcloud projects describe "$DW_PROJECT" --format="value(projectNumber
 gcloud billing budgets create \
   --billing-account="$DW_BILLING" \
   --display-name="Dreamwalker" \
-  --budget-amount=20USD \
+  --budget-amount=80PLN \
   --filter-projects="projects/$DW_NUMBER" \
   --threshold-rule=percent=0.5 \
   --threshold-rule=percent=0.9 \
