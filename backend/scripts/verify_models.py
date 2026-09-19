@@ -48,8 +48,21 @@ IMG_IN, IMG_OUT, IMG_TOKENS = 0.25, 1.50, 30.00
 OK, FAIL, WARN = "  ok  ", " FAIL ", " warn "
 
 
+_vertex_client: genai.Client | None = None
+
+
 def vertex() -> genai.Client:
-    return genai.Client(vertexai=True, project=PROJECT, location=LOCATION)
+    """Cached client.
+
+    The client must outlive the request: google-genai closes its transport when
+    the Client is garbage-collected, so calling `genai.Client(...).models.x()`
+    on a temporary fails with "Cannot send a request, as the client has been
+    closed."
+    """
+    global _vertex_client
+    if _vertex_client is None:
+        _vertex_client = genai.Client(vertexai=True, project=PROJECT, location=LOCATION)
+    return _vertex_client
 
 
 def check_text() -> bool:
@@ -62,7 +75,8 @@ def check_text() -> bool:
     for model in (TEXT_MODEL, TEXT_FALLBACK):
         try:
             t0 = time.monotonic()
-            r = vertex().models.generate_content(
+            client = vertex()
+            r = client.models.generate_content(
                 model=model,
                 contents="Wymysl tytul krotkiej historii o ladowaniu rakiety i liczbe scen.",
                 config=types.GenerateContentConfig(
@@ -88,7 +102,8 @@ def check_text() -> bool:
 def check_image() -> bool:
     try:
         t0 = time.monotonic()
-        r = vertex().models.generate_content(
+        client = vertex()
+        r = client.models.generate_content(
             model=IMAGE_MODEL,
             contents=(
                 "Pixel-art interior of an empty parliament chamber at night, muted palette. "
