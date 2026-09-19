@@ -8,7 +8,7 @@ class Settings(BaseSettings):
 
     # Vertex AI serves text and images; see docs/architecture.md.
     gcp_project: str = ""
-    gcp_location: str = "europe-central2"
+    gcp_location: str = "global"  # Gemini on Vertex is served from the global endpoint
     text_model: str = "gemini-3.5-flash-lite"
     image_model: str = "gemini-3.1-flash-lite-image"
 

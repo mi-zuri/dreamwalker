@@ -34,3 +34,6 @@ CLAUDE.md
 
 # Playwright MCP scratch output
 .playwright-mcp/
+
+# Local env
+web/.env.local

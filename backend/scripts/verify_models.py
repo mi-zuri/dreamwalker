@@ -13,12 +13,29 @@ import asyncio
 import os
 import sys
 import time
+from pathlib import Path
 
 from google import genai
 from google.genai import types
 
+
+def load_env() -> None:
+    """Read backend/.env so the script runs with no exports."""
+    env = Path(__file__).resolve().parent.parent / ".env"
+    if not env.exists():
+        return
+    for line in env.read_text().splitlines():
+        line = line.strip()
+        if not line or line.startswith("#") or "=" not in line:
+            continue
+        key, _, value = line.partition("=")
+        os.environ.setdefault(key.strip(), value.strip())
+
+
+load_env()
+
 PROJECT = os.environ.get("GCP_PROJECT", "")
-LOCATION = os.environ.get("GCP_LOCATION", "europe-central2")
+LOCATION = os.environ.get("GCP_LOCATION", "global")
 TEXT_MODEL = os.environ.get("TEXT_MODEL", "gemini-3.5-flash-lite")
 TEXT_FALLBACK = "gemini-3.1-flash-lite"
 IMAGE_MODEL = os.environ.get("IMAGE_MODEL", "gemini-3.1-flash-lite-image")
