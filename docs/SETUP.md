@@ -4,6 +4,12 @@ Everything here is a one-off. Steps 1–2 work right now; 3–6 unblock the real
 generation pipeline in Phase 2 and later. Nothing in the repo needs any of this
 to run in mock mode.
 
+**Status as of 2026-09-19: steps 2-7 are all complete.** Project
+`mi-zuri-dreamwalker-app` is created and billed, ADC is configured, all APIs are
+on, Firestore and the assets bucket exist, all three models verified, and Google
+sign-in is enabled with `web/.env.local` written. What follows is kept as the
+record of how it was set up, and for rebuilding a dev environment later.
+
 Facts already confirmed on this machine, so you can skip checking them:
 
 - `gcloud` is installed and both your accounts are logged in.
