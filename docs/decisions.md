@@ -65,33 +65,41 @@ pool goes stale, and $0 otherwise. No Cloud Scheduler job, so nothing ticks.
 Everything else already idles free: Cloud Run scales to zero, Firestore and
 Cloud Storage stay inside their free tiers at this volume.
 
-### Images are capped, because they cannot be made cheaper
+### Images stay generous, and cannot be made cheaper
 
 Measured on the real model: `gemini-3.1-flash-lite-image` bills **1120 output
 tokens = $0.0336 per image regardless of resolution.** Asking for 1K vs the
 default produced identical token counts. Resolution is not a lever; **count is
-the only lever.**
+the only lever that exists.**
 
-- **Hard cap of 3 generated images per game.**
-- News mode prefers real press photos, which are free, so it often generates
-  1–2.
-- Q7's variable story length helps directly: a two-location story generates two
-  images.
-- Aggressive caching by style + location hash, as the old code already did.
+Decision (2026-09-20): **do not cap image count.** Keep generation generous —
+the look is a large part of the point, and the month-to-date spend cap already
+bounds the damage. The practical effect is fewer games per month before the cap
+trips, not a surprise bill.
+
+Two things still reduce image spend without touching quality:
+
+- News mode prefers real press photos, which are free, so it generates only
+  what the photos do not cover.
+- Q7's variable story length means a short story generates few images on its
+  own.
+
+Caching by style + location hash still applies, as the old code did.
 
 ### Revised cost model
 
-| | Old plan | Cheap mode |
+| | Old plan | Now |
 |---|---|---|
-| Images | ~6 → $0.20 | ≤3 → **$0.10**, often less |
+| Images | ~6 → $0.20 | uncapped, **~$0.20** typical |
 | Text | $0.08 | **$0.05** (less pregeneration) |
 | News ingest, per game | — | **$0.03–0.05** amortised |
-| **Per game** | ~$0.28 | **~$0.15 idea / ~$0.12 news** |
+| **Per game** | ~$0.28 | **~$0.25 idea / ~$0.20 news** |
 | **Fixed monthly** | ~$9 | **$0** |
 
-At ~10 PLN (~$2.45) that is roughly **16–20 games a month**. Enough for a
-project you and some friends play; not enough to hand around widely — which is
-what invite-only (Q15) is for.
+At ~10 PLN (~$2.45) that is roughly **10–12 games a month**. The saving that
+matters is the fixed cost going to zero; images were deliberately left
+generous. If that turns out too tight in practice the cheapest lever is image
+count, and it can be capped later without touching anything else.
 
 **Music is the remaining unknown and it is now load-bearing.** See below.
 
