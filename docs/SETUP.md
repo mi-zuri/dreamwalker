@@ -438,10 +438,9 @@ That is reversible for 30 days, then permanent.
 
 | What | Command |
 |---|---|
-| Play the mock build | `bun run dev:web` |
-| Web + backend together | `bun run dev` |
+| Play the game (web + backend) | `bun run dev` |
 | Backend only | `bun run dev:backend` |
 | Regenerate frontend API types | `bun run gen:api` (backend must be running) |
-| Backend tests | `bun run test` — exits 5 ("no tests ran") until Phase 3 adds the map validator suite |
+| Backend tests | `bun run test` |
 | Typecheck + build the web app | `cd web && bunx tsc --noEmit && bun run build` |
 | Verify models | `cd backend && uv run python scripts/verify_models.py` |

@@ -144,6 +144,45 @@ minutes.
 
 ---
 
+---
+
+## Phase 2 decisions
+
+Made while building the backend contract. None of these change the budget.
+
+**Movement commits once per walk, not once per tile.** The mock frontend fired
+one call per step (90ms apart). Against a real backend that is ~20 requests for
+one walk. The client now animates locally and commits the settled destination
+after 140ms of stillness; the server BFS-validates that tile against its own
+map and its answer overwrites the optimistic position. One walk, one request,
+and still no way to walk through a wall or a locked door.
+
+**Pregenerated content lives in a `GameScript`, not in `GameState`.** Scene
+text, dialogue and the ending are stored server-side under
+`users/{uid}/scripts/{game_id}` and never leave it. The player is handed only
+the scene they have reached, and the generated OpenAPI schema stays as small as
+the UI needs. The turn log is appended to the same document as the game is
+played, which is what the replay is served from.
+
+**One error shape: `{kind, detail}`.** `kind` is the same closed set the UI
+branches on, so the client never parses prose. The model is declared in the
+schema, so `AppErrorKind` is generated rather than hand-kept.
+
+**The loading stream is read with `fetch`, not `EventSource`.** `EventSource`
+cannot set an `Authorization` header, and putting an ID token in a URL puts it
+in every access log along the way.
+
+**`web/src/types.ts` is now a projection of the generated schema**, not a
+parallel definition. The only hand-written part re-asserts collections that
+Pydantic's `default_factory` marks optional but the server always sends.
+
+**`web/src/mocks/` is gone.** The four recorded runs moved to
+`backend/app/fixtures/games/*.json` and are replayed by `LLM_MODE=mock`, so the
+mock path is now the real API with fake content rather than a second
+implementation of the game that could drift.
+
+---
+
 ## Still needed
 
 **The actual Lyria RealTime cost.** At a 10 PLN budget this is no longer a

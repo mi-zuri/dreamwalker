@@ -41,7 +41,7 @@ export function LibraryScreen() {
                     {new Date(g.played_at).toLocaleDateString()} ·{' '}
                     {t(uiLanguage, g.mode === 'news' ? 'modeNews' : 'modeIdea')} ·{' '}
                     {g.story_language.toUpperCase()}
-                    {g.match_score !== undefined && (
+                    {g.match_score != null && (
                       <>
                         {' · '}
                         <span className="text-indigo-400">

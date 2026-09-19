@@ -11,7 +11,8 @@ import { LocationImage } from '../game/LocationImage';
 const SIDEBAR_VIEWPORT = { cols: 27, rows: 13 };
 
 export function GameScreen() {
-  const { uiLanguage, game, busy, moveTo, choose, answer, setOff, toMenu } = useStore();
+  const { uiLanguage, game, localPos, busy, moveTo, choose, answer, setOff, toMenu } =
+    useStore();
   const [draft, setDraft] = useState('');
   const [blocked, setBlocked] = useState(false);
 
@@ -25,6 +26,9 @@ export function GameScreen() {
 
   const openQuestion = game.open_question;
   const travelling = game.view === 'travel';
+  // The player is drawn where they have walked to; the scene only changes
+  // once the server has confirmed the move.
+  const shownPos = localPos ?? game.player_pos;
   const here = destinationAt(game.map, game.player_pos);
   const placeName = here ? here.name : t(uiLanguage, 'inTransit');
   const left = game.map.destinations.length - game.resolved.length;
@@ -81,7 +85,7 @@ export function GameScreen() {
               <div className="text-xs text-gray-500 mb-2">{t(uiLanguage, 'map')}</div>
               <TileMap
                 map={game.map}
-                playerPos={game.player_pos}
+                playerPos={shownPos}
                 resolved={game.resolved}
                 unlocked={game.unlocked}
                 onMove={moveTo}
@@ -105,7 +109,7 @@ export function GameScreen() {
             <div className="flex-1 flex items-center justify-center min-h-0">
               <TileMap
                 map={game.map}
-                playerPos={game.player_pos}
+                playerPos={shownPos}
                 resolved={game.resolved}
                 unlocked={game.unlocked}
                 onMove={moveTo}

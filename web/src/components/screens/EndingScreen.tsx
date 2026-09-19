@@ -39,7 +39,7 @@ export function EndingScreen() {
         <span className="text-indigo-400 text-sm tracking-widest">
           {t(uiLanguage, 'endingTitle')}
         </span>
-        {ending.match_score !== undefined && (
+        {ending.match_score != null && (
           <span className="text-xs text-gray-500">
             {t(uiLanguage, 'matchScore')}:{' '}
             <span className="text-indigo-400">{Math.round(ending.match_score * 100)}%</span>

@@ -19,6 +19,22 @@ class Settings(BaseSettings):
 
     # "mock" replays recorded fixtures and spends nothing.
     llm_mode: Literal["live", "mock"] = "mock"
+    # Scales the faked loading-stage delays; tests set it to 0.
+    mock_stage_scale: float = 1.0
+
+    # "dev" treats every caller as one local user; deployment uses "firebase".
+    auth_mode: Literal["dev", "firebase"] = "dev"
+
+    # Launch is invite-only, which is the strongest cost control we have.
+    invite_only: bool = False
+    allowed_emails: list[str] = []
+
+    # Storage. "memory" keeps games in-process for local runs.
+    storage_mode: Literal["memory", "firestore"] = "memory"
+    assets_bucket: str = ""
+
+    # Hard monthly spend cap, in USD, checked before every generation.
+    monthly_budget_usd: float = 2.40
 
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:5174"]
 
