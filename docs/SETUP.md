@@ -38,25 +38,34 @@ bun run dev          # web on :5174, backend on :8000
 
 ---
 
-## 2. Create a project for the game (3 min)
+## 2. Create the project (5 min)
 
 **Use a new project, not `mi-zuri-com`.** Three reasons specific to what is
 already there:
 
-- A project has exactly one default Firestore database, and both its **location
-  and its mode are permanent** once created — they cannot be moved or changed
+- A project gets exactly one default Firestore database, and both its
+  **location and its mode are permanent** once created — neither can be changed
   later without deleting the database. `mi-zuri-com` has not initialised
   Firestore yet, so that one-shot choice is still unspent. Do not spend it on a
   game inside the project that hosts your website.
-- `mi-zuri-com` has **no budget alerts at all**. This app spends money per play
-  and runs an unattended ingest job on a schedule. In its own project, its cost
-  is one line in a billing report and a budget can target it exactly; shared, it
-  is blended with your site's costs.
-- Tearing the game down later is one command instead of unpicking Firestore,
-  buckets, Cloud Run services, scheduler jobs and service accounts by hand.
+- `mi-zuri-com` has **no budget alerts**. This app costs money per play and runs
+  an unattended ingest job on a schedule. In its own project its spend is one
+  line in a billing report and a budget can target it exactly.
+- Teardown becomes one reversible command instead of unpicking resources by hand.
 
-Projects are free and the same billing account attaches to both, so this costs
-nothing but the commands below.
+Projects are free and the same billing account links to both.
+
+### 2a. Point gcloud at the account that owns billing
+
+```bash
+gcloud config set account michal.zurawski10@gmail.com
+```
+
+Both your accounts are logged in, but only this one owns billing account
+`01C6F0-6B1488-53CEC3`. Creating the project here means the billing link needs
+no cross-account permissions. Your git identity does not have to match.
+
+### 2b. Create the project and attach billing
 
 ```bash
 gcloud projects create dreamwalker-app --name="Dreamwalker"
@@ -65,41 +74,89 @@ gcloud billing projects link dreamwalker-app \
 gcloud config set project dreamwalker-app
 ```
 
-Project ids are globally unique. If `dreamwalker-app` is taken, add a suffix
-(`dreamwalker-app-mz`) and use that everywhere below.
+Line 1 creates it. Line 2 attaches billing — **without this, every API call
+fails**, because Vertex AI has no free tier. Line 3 makes it the default so you
+can drop `--project` from later commands.
 
-Set a budget alert while you are here — the console is the quickest path:
-https://console.cloud.google.com/billing/01C6F0-6B1488-53CEC3/budgets
-Scope it to `dreamwalker-app` and set something you would not mind losing, e.g.
-$20/month at 50/90/100%.
-
-### Which account?
-
-`gcloud` is active as **michal.zurawski10@gmail.com**, which owns the billing
-account. Create the project with that account so billing links without
-cross-account permission work. Your git identity
-(michal.zurawski02@gmail.com) does not need to match.
-
-## 3. Application Default Credentials (2 min) — **this is the current blocker**
-
-Text and image generation go through Vertex AI, which authenticates with ADC.
-This opens a browser window.
+Project ids are globally unique. If you get `already exists`, pick another
+(`dreamwalker-mz`, `dreamwalker-game`) and **use it everywhere below** — the
+simplest way is to set it once:
 
 ```bash
-gcloud config set project dreamwalker-app
-gcloud auth application-default login
-gcloud auth application-default set-quota-project dreamwalker-app
+export DW_PROJECT=dreamwalker-app     # or whatever you actually created
 ```
 
-Verify:
+`export` lasts only for that terminal window. If you open a new one, run it
+again before continuing.
+
+Check it worked:
 
 ```bash
-ls ~/.config/gcloud/application_default_credentials.json
+gcloud billing projects describe $DW_PROJECT
 ```
+
+You want `billingEnabled: true`.
+
+### 2c. Set a budget alert
+
+Not strictly required, but this app spends per play and runs unattended. Do it
+before anything can bill.
+
+```bash
+gcloud services enable billingbudgets.googleapis.com --project=$DW_PROJECT
+
+DW_NUMBER=$(gcloud projects describe $DW_PROJECT --format="value(projectNumber)")
+
+gcloud billing budgets create \
+  --billing-account=01C6F0-6B1488-53CEC3 \
+  --display-name="Dreamwalker" \
+  --budget-amount=20USD \
+  --filter-projects="projects/$DW_NUMBER" \
+  --threshold-rule=percent=0.5 \
+  --threshold-rule=percent=0.9 \
+  --threshold-rule=percent=1.0
+```
+
+The filter needs the project *number*, not its id, which is why `DW_NUMBER` is
+looked up first. You get email at 50%, 90% and 100% of $20/month, scoped to
+this project only. A budget **alerts, it does not cap** — the hard spending
+limits are the per-user and per-day caps built into the app itself.
 
 ---
 
-## 4. Enable the remaining APIs (3 min, mostly waiting)
+## 3. Application Default Credentials (2 min)
+
+Vertex AI (text and images) authenticates as *you* locally, via ADC. This is
+the step that is currently blocking everything.
+
+```bash
+gcloud auth application-default login
+gcloud auth application-default set-quota-project $DW_PROJECT
+```
+
+The first opens a browser — approve it. The second says which project gets
+billed for the quota these credentials consume; without it you get
+`Your application is authenticating by using local Application Default
+Credentials` warnings and quota errors.
+
+Check:
+
+```bash
+ls -l ~/.config/gcloud/application_default_credentials.json
+```
+
+Note this is **separate** from `gcloud auth login`. Both are needed and they do
+different things: one authenticates the `gcloud` CLI, the other authenticates
+code running on your machine.
+
+---
+
+## 4. Enable APIs and create the data stores (5 min, mostly waiting)
+
+### 4a. APIs
+
+A fresh project has almost nothing enabled, so this turns on everything the
+project needs now and in later phases:
 
 ```bash
 gcloud services enable \
@@ -107,103 +164,162 @@ gcloud services enable \
   firestore.googleapis.com \
   firebase.googleapis.com \
   identitytoolkit.googleapis.com \
-  --project=dreamwalker-app
+  run.googleapis.com \
+  cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com \
+  cloudscheduler.googleapis.com \
+  secretmanager.googleapis.com \
+  storage.googleapis.com \
+  --project=$DW_PROJECT
 ```
 
-Create the Firestore database and the asset bucket (names must be globally
-unique — change them if taken):
+What each is for: `aiplatform` is Vertex AI (text + images); `firestore` stores
+saves and played-event ids; `firebase` + `identitytoolkit` are Google sign-in;
+`run` + `cloudbuild` + `artifactregistry` deploy the backend in Phase 8;
+`cloudscheduler` triggers the news ingest job; `secretmanager` holds the Gemini
+key; `storage` holds images, audio and press photos.
+
+This takes a minute or two. Verify:
 
 ```bash
-gcloud firestore databases create --location=eur3 --project=dreamwalker-app
-
-gcloud storage buckets create gs://dreamwalker-app-assets \
-  --location=europe-central2 --project=dreamwalker-app
+gcloud services list --enabled --project=$DW_PROJECT | grep -E "aiplatform|firestore|identitytoolkit"
 ```
 
-Bucket names share one global namespace, so if that one is taken add a suffix
-and tell me the name you used. Firestore's `eur3` location is **permanent** —
-it cannot be changed later without deleting the database.
+### 4b. Firestore
+
+```bash
+gcloud firestore databases create --location=eur3 --project=$DW_PROJECT
+```
+
+`eur3` is the Europe multi-region. **This is permanent** — the location and the
+mode cannot be changed afterwards, only deleted and recreated. The default
+`--type` is `firestore-native`, which is what we want; do not pass
+`datastore-mode`.
+
+### 4c. Storage bucket
+
+```bash
+gcloud storage buckets create gs://$DW_PROJECT-assets \
+  --location=europe-central2 \
+  --uniform-bucket-level-access \
+  --project=$DW_PROJECT
+```
+
+Naming it after the project keeps it unique without thinking about it. Bucket
+names are one global namespace, so if it is somehow taken, add a suffix and
+tell me the name you used. `--uniform-bucket-level-access` means permissions
+are IAM-only rather than per-object ACLs, which is the current default
+recommendation and simpler to reason about.
 
 ---
 
-## 5. Local config file (1 min)
+## 5. Local config (2 min)
 
 ```bash
 cd "/Users/michu/VSCode Projects/dreamwalker/backend"
 cp .env.example .env
 ```
 
-Then edit `backend/.env`:
+Copy your existing Gemini key across without ever printing it — it is only
+needed for Lyria, which is not on Vertex AI:
+
+```bash
+cd "/Users/michu/VSCode Projects/dreamwalker"
+grep '^GOOGLE_API_KEY=' server/.env \
+  | sed 's/^GOOGLE_API_KEY=/GEMINI_API_KEY=/' >> backend/.env
+```
+
+Then open `backend/.env` and set the project (it is already open-able in your
+editor):
 
 ```
 GCP_PROJECT=dreamwalker-app
 GCP_LOCATION=global
-GEMINI_API_KEY=<your existing key>
 LLM_MODE=mock
 MUSIC_MODE=realtime
 ```
 
-Your existing Gemini key is still in the old `server/.env` as `GOOGLE_API_KEY`.
-To copy it across without printing it:
+`GCP_LOCATION=global` is where Vertex serves Gemini from. `LLM_MODE=mock` stays
+until Phase 4 — the pipeline runs on recorded fixtures and spends nothing.
+`backend/.env` is gitignored.
+
+Check the key landed exactly once:
 
 ```bash
-cd "/Users/michu/VSCode Projects/dreamwalker"
-grep '^GOOGLE_API_KEY=' server/.env | sed 's/^GOOGLE_API_KEY=/GEMINI_API_KEY=/' >> backend/.env
+grep -c GEMINI_API_KEY backend/.env      # expect: 1
 ```
-
-`backend/.env` is gitignored.
 
 ---
 
-## 6. Verify the models and measure what Lyria costs (5 min)
+## 6. Verify the models, and measure Lyria (5 min)
 
 ```bash
 cd "/Users/michu/VSCode Projects/dreamwalker/backend"
 uv run python scripts/verify_models.py
 ```
 
-Expect all three to pass. If the text check reports that `gemini-3.5-flash-lite`
-is unavailable and it fell back to `gemini-3.1-flash-lite`, that is fine —
-tell me and I will pin the fallback.
+This reads `backend/.env` itself, then calls all three models for real and
+prints tokens, latency and cost. It spends a few cents. Expect
+`text=PASS image=PASS music=PASS`.
 
-**The one thing only you can do:** Lyria RealTime has no published price. The
-script streams ~20 seconds of audio and prints how much it produced, but not
-what it cost. A few minutes later, check:
-
-https://console.cloud.google.com/billing/01C6F0-6B1488-53CEC3/reports?project=dreamwalker-app
-
-Filter to today and look for the Lyria / Generative Language line. Tell me the
-number. It decides whether live music stays the default or whether we switch to
-the pregenerated loop library (~$1.20 one-off, then free).
-
-To skip the music check while testing the other two:
+If text reports that `gemini-3.5-flash-lite` is unavailable and it fell back to
+`gemini-3.1-flash-lite`, that is a known possibility — tell me and I will pin
+the fallback. To check the other two without opening a music session:
 
 ```bash
 uv run python scripts/verify_models.py --skip-music
 ```
 
+### The one thing only you can do
+
+Lyria RealTime has **no published price**. The script measures how much audio it
+produced but cannot price it. A few minutes after running it, open:
+
+https://console.cloud.google.com/billing/01C6F0-6B1488-53CEC3/reports
+
+Filter to today, group by SKU, and look for the Lyria or Generative Language
+line. **Tell me that number.** It decides whether live music stays the default
+or whether we fall back to the pregenerated loop library (~$1.20 once, then
+free forever).
+
 ---
 
-## 7. Firebase sign-in (5 min, console only) — needed for Phase 2
+## 7. Firebase sign-in (5 min) — console only
 
-Google sign-in cannot be enabled from the CLI.
+There is no CLI for enabling an auth provider: it needs an OAuth consent screen
+and an OAuth client, which only the console creates. Exact clicks:
 
-1. Go to https://console.firebase.google.com and click **Add project**.
-2. Choose the **existing** `dreamwalker-app` project rather than creating a new one.
-3. **Build → Authentication → Get started → Sign-in method → Google → Enable**, then save.
-4. **Project settings → General → Your apps → Web (`</>`)**, register an app called
-   `dreamwalker-web`, and copy the `firebaseConfig` block it shows you.
-5. Paste that block into this chat, or save it to `web/.env.local` as:
+1. Open https://console.firebase.google.com
+2. **Create a project** → **Add Firebase to an existing Google Cloud project**,
+   and pick `dreamwalker-app`. Do **not** let it create a new project.
+3. Decline Google Analytics unless you want it.
+4. Left sidebar → **Build** → **Authentication** → **Get started**.
+5. **Sign-in method** tab → **Google** → toggle **Enable**.
+6. Set the support email to your own address, then **Save**.
+7. Gear icon → **Project settings** → **General** → scroll to **Your apps** →
+   click the web icon **`</>`**.
+8. Nickname it `dreamwalker-web`. Leave "Firebase Hosting" unticked — we decide
+   hosting in Phase 8. **Register app**.
+9. It shows a `firebaseConfig` object. Copy it.
 
+Then save those values locally:
+
+```bash
+cd "/Users/michu/VSCode Projects/dreamwalker"
+cat > web/.env.local <<'ENV'
+VITE_FIREBASE_API_KEY=paste_apiKey_here
+VITE_FIREBASE_AUTH_DOMAIN=paste_authDomain_here
+VITE_FIREBASE_PROJECT_ID=paste_projectId_here
+VITE_FIREBASE_APP_ID=paste_appId_here
+ENV
 ```
-VITE_FIREBASE_API_KEY=...
-VITE_FIREBASE_AUTH_DOMAIN=...
-VITE_FIREBASE_PROJECT_ID=...
-VITE_FIREBASE_APP_ID=...
-```
 
-These are public by design — they identify the project, they do not authorise
-anything. `web/.env.local` is gitignored.
+These four values are **public by design** — they identify the project, they do
+not authorise anything. Security comes from Firestore rules and the backend
+verifying ID tokens. `web/.env.local` is gitignored anyway.
+
+You can also just paste the `firebaseConfig` block into the chat and I will
+wire it up.
 
 ---
 
@@ -219,6 +335,54 @@ Part I). None block Phase 2, but #6 shapes how much gets built before launch:
 5. A Polish player picking world news gets the story in Polish. Intended?
 6. **Ship idea mode publicly after Phase 4, or hold launch until news mode lands
    at Phase 6?**
+
+---
+
+## Appendix: steps 2–4 as one block
+
+If you would rather paste once and read the explanations only if something
+fails. Stop and check the output if any line errors.
+
+```bash
+set -e
+export DW_PROJECT=dreamwalker-app
+export DW_BILLING=01C6F0-6B1488-53CEC3
+
+gcloud config set account michal.zurawski10@gmail.com
+gcloud projects create "$DW_PROJECT" --name="Dreamwalker"
+gcloud billing projects link "$DW_PROJECT" --billing-account="$DW_BILLING"
+gcloud config set project "$DW_PROJECT"
+
+gcloud services enable billingbudgets.googleapis.com --project="$DW_PROJECT"
+DW_NUMBER=$(gcloud projects describe "$DW_PROJECT" --format="value(projectNumber)")
+gcloud billing budgets create \
+  --billing-account="$DW_BILLING" \
+  --display-name="Dreamwalker" \
+  --budget-amount=20USD \
+  --filter-projects="projects/$DW_NUMBER" \
+  --threshold-rule=percent=0.5 \
+  --threshold-rule=percent=0.9 \
+  --threshold-rule=percent=1.0
+
+gcloud auth application-default login
+gcloud auth application-default set-quota-project "$DW_PROJECT"
+
+gcloud services enable \
+  aiplatform.googleapis.com firestore.googleapis.com firebase.googleapis.com \
+  identitytoolkit.googleapis.com run.googleapis.com cloudbuild.googleapis.com \
+  artifactregistry.googleapis.com cloudscheduler.googleapis.com \
+  secretmanager.googleapis.com storage.googleapis.com \
+  --project="$DW_PROJECT"
+
+gcloud firestore databases create --location=eur3 --project="$DW_PROJECT"
+gcloud storage buckets create "gs://$DW_PROJECT-assets" \
+  --location=europe-central2 --uniform-bucket-level-access \
+  --project="$DW_PROJECT"
+
+echo "done - project $DW_PROJECT ready"
+```
+
+Steps 5 and 6 come next; step 7 is console-only.
 
 ---
 
