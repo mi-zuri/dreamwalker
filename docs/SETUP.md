@@ -294,42 +294,62 @@ free forever).
 
 ---
 
-## 7. Firebase sign-in (5 min) — console only
+## 7. Firebase sign-in (5 min) — console
 
-There is no CLI for enabling an auth provider: it needs an OAuth consent screen
-and an OAuth client, which only the console creates. Exact clicks:
+Enabling an auth provider needs an OAuth consent screen and an OAuth client.
+The console creates both for you automatically; the CLI and REST API make you
+supply them yourself, so the console is genuinely the short path here.
+
+### What you do
 
 1. Open https://console.firebase.google.com
-2. **Create a project** → **Add Firebase to an existing Google Cloud project**,
-   and pick `dreamwalker-app`. Do **not** let it create a new project.
-3. Decline Google Analytics unless you want it.
-4. Left sidebar → **Build** → **Authentication** → **Get started**.
-5. **Sign-in method** tab → **Google** → toggle **Enable**.
-6. Set the support email to your own address, then **Save**.
-7. Gear icon → **Project settings** → **General** → scroll to **Your apps** →
-   click the web icon **`</>`**.
-8. Nickname it `dreamwalker-web`. Leave "Firebase Hosting" unticked — we decide
-   hosting in Phase 8. **Register app**.
-9. It shows a `firebaseConfig` object. Copy it.
+2. **Create a project** — then, instead of typing a new name, pick
+   **`mi-zuri-dreamwalker-app`** from the existing-projects list. This adds
+   Firebase to the Google Cloud project you already built. Do **not** create a
+   fresh project.
+3. Confirm the billing/plan prompt if it appears, and decline Google Analytics
+   unless you want it.
+4. In the left sidebar: **Security → Authentication** → **Get started**.
+   (This used to live under "Build"; the nav moved.)
+5. **Sign-in method** tab → choose **Google** from the provider list.
+6. Toggle **Enable**.
+7. Set **Project support email** to your own address — it is required and it is
+   shown to users on the Google consent screen.
+8. **Save**.
 
-Then save those values locally:
+That is all. You do not need to register a web app by hand or copy any config:
+tell me it is done and I will pull the config with your existing credentials
+and write `web/.env.local`.
 
-```bash
-cd "/Users/michu/VSCode Projects/dreamwalker"
-cat > web/.env.local <<'ENV'
-VITE_FIREBASE_API_KEY=paste_apiKey_here
-VITE_FIREBASE_AUTH_DOMAIN=paste_authDomain_here
-VITE_FIREBASE_PROJECT_ID=paste_projectId_here
-VITE_FIREBASE_APP_ID=paste_appId_here
-ENV
+### If you would rather do that part too
+
+Gear icon → **Project settings** → **General** → **Your apps** → web icon
+**`</>`** → nickname `dreamwalker-web` → leave **Firebase Hosting unticked** (we
+decide hosting in Phase 8) → **Register app**. Copy the `firebaseConfig` block
+into `web/.env.local`:
+
+```
+VITE_FIREBASE_API_KEY=...
+VITE_FIREBASE_AUTH_DOMAIN=...
+VITE_FIREBASE_PROJECT_ID=...
+VITE_FIREBASE_APP_ID=...
 ```
 
 These four values are **public by design** — they identify the project, they do
-not authorise anything. Security comes from Firestore rules and the backend
-verifying ID tokens. `web/.env.local` is gitignored anyway.
+not authorise anything. Security comes from Firestore rules plus the backend
+verifying ID tokens on every request. `web/.env.local` is gitignored regardless.
 
-You can also just paste the `firebaseConfig` block into the chat and I will
-wire it up.
+### Checking it worked
+
+```bash
+TOKEN=$(gcloud auth print-access-token)
+curl -s -H "Authorization: Bearer $TOKEN" \
+     -H "x-goog-user-project: mi-zuri-dreamwalker-app" \
+  "https://identitytoolkit.googleapis.com/admin/v2/projects/mi-zuri-dreamwalker-app/defaultSupportedIdpConfigs"
+```
+
+Before step 8 this returns `CONFIGURATION_NOT_FOUND` or an empty object. After
+it, you should see a `google.com` entry with `"enabled": true`.
 
 ---
 
