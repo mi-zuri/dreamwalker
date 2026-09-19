@@ -7,9 +7,12 @@ to run in mock mode.
 Facts already confirmed on this machine, so you can skip checking them:
 
 - `gcloud` is installed and both your accounts are logged in.
-- Project `mi-zuri-com` exists and **billing is already enabled** on it.
-- Cloud Run, Cloud Scheduler, Secret Manager and Cloud Storage are already enabled.
-- Still missing: Application Default Credentials, the Vertex AI API, Firestore.
+- Billing account `01C6F0-6B1488-53CEC3` is active and attached to `mi-zuri-com`.
+- `mi-zuri-com` holds your sites: two static buckets, one scheduler job
+  (`fetch-projects-hourly`), one secret (`github-token`), some BigQuery work.
+  No Cloud Run services, no Firestore, no Firebase Auth, no budget alerts.
+- Still missing everywhere: Application Default Credentials, the Vertex AI API,
+  Firestore.
 
 ---
 
@@ -35,27 +38,47 @@ bun run dev          # web on :5174, backend on :8000
 
 ---
 
-## 2. Decide which Google account owns this (1 min)
+## 2. Create a project for the game (3 min)
 
-`gcloud` is currently active as **michal.zurawski10@gmail.com**, and that is the
-account that owns `mi-zuri-com` with billing attached. Your git identity is
-michal.zurawski02@gmail.com.
+**Use a new project, not `mi-zuri-com`.** Three reasons specific to what is
+already there:
 
-If `mi-zuri-com` is the right home, do nothing. To use the other account
-instead, switch and create a project there — you will have to attach billing to
-it in the console:
+- A project has exactly one default Firestore database, and both its **location
+  and its mode are permanent** once created — they cannot be moved or changed
+  later without deleting the database. `mi-zuri-com` has not initialised
+  Firestore yet, so that one-shot choice is still unspent. Do not spend it on a
+  game inside the project that hosts your website.
+- `mi-zuri-com` has **no budget alerts at all**. This app spends money per play
+  and runs an unattended ingest job on a schedule. In its own project, its cost
+  is one line in a billing report and a budget can target it exactly; shared, it
+  is blended with your site's costs.
+- Tearing the game down later is one command instead of unpicking Firestore,
+  buckets, Cloud Run services, scheduler jobs and service accounts by hand.
+
+Projects are free and the same billing account attaches to both, so this costs
+nothing but the commands below.
 
 ```bash
-gcloud config set account michal.zurawski02@gmail.com
-gcloud projects create dreamwalker-prod --name="Dreamwalker"
-gcloud config set project dreamwalker-prod
-# then attach billing at https://console.cloud.google.com/billing
+gcloud projects create dreamwalker-app --name="Dreamwalker"
+gcloud billing projects link dreamwalker-app \
+  --billing-account=01C6F0-6B1488-53CEC3
+gcloud config set project dreamwalker-app
 ```
 
-The rest of this document assumes `mi-zuri-com`. Substitute your project id if
-you chose otherwise.
+Project ids are globally unique. If `dreamwalker-app` is taken, add a suffix
+(`dreamwalker-app-mz`) and use that everywhere below.
 
----
+Set a budget alert while you are here — the console is the quickest path:
+https://console.cloud.google.com/billing/01C6F0-6B1488-53CEC3/budgets
+Scope it to `dreamwalker-app` and set something you would not mind losing, e.g.
+$20/month at 50/90/100%.
+
+### Which account?
+
+`gcloud` is active as **michal.zurawski10@gmail.com**, which owns the billing
+account. Create the project with that account so billing links without
+cross-account permission work. Your git identity
+(michal.zurawski02@gmail.com) does not need to match.
 
 ## 3. Application Default Credentials (2 min) — **this is the current blocker**
 
@@ -63,9 +86,9 @@ Text and image generation go through Vertex AI, which authenticates with ADC.
 This opens a browser window.
 
 ```bash
-gcloud config set project mi-zuri-com
+gcloud config set project dreamwalker-app
 gcloud auth application-default login
-gcloud auth application-default set-quota-project mi-zuri-com
+gcloud auth application-default set-quota-project dreamwalker-app
 ```
 
 Verify:
@@ -84,18 +107,22 @@ gcloud services enable \
   firestore.googleapis.com \
   firebase.googleapis.com \
   identitytoolkit.googleapis.com \
-  --project=mi-zuri-com
+  --project=dreamwalker-app
 ```
 
 Create the Firestore database and the asset bucket (names must be globally
 unique — change them if taken):
 
 ```bash
-gcloud firestore databases create --location=eur3 --project=mi-zuri-com
+gcloud firestore databases create --location=eur3 --project=dreamwalker-app
 
-gcloud storage buckets create gs://dreamwalker-assets \
-  --location=europe-central2 --project=mi-zuri-com
+gcloud storage buckets create gs://dreamwalker-app-assets \
+  --location=europe-central2 --project=dreamwalker-app
 ```
+
+Bucket names share one global namespace, so if that one is taken add a suffix
+and tell me the name you used. Firestore's `eur3` location is **permanent** —
+it cannot be changed later without deleting the database.
 
 ---
 
@@ -109,7 +136,7 @@ cp .env.example .env
 Then edit `backend/.env`:
 
 ```
-GCP_PROJECT=mi-zuri-com
+GCP_PROJECT=dreamwalker-app
 GCP_LOCATION=global
 GEMINI_API_KEY=<your existing key>
 LLM_MODE=mock
@@ -143,7 +170,7 @@ tell me and I will pin the fallback.
 script streams ~20 seconds of audio and prints how much it produced, but not
 what it cost. A few minutes later, check:
 
-https://console.cloud.google.com/billing/01C6F0-6B1488-53CEC3/reports?project=mi-zuri-com
+https://console.cloud.google.com/billing/01C6F0-6B1488-53CEC3/reports?project=dreamwalker-app
 
 Filter to today and look for the Lyria / Generative Language line. Tell me the
 number. It decides whether live music stays the default or whether we switch to
@@ -162,7 +189,7 @@ uv run python scripts/verify_models.py --skip-music
 Google sign-in cannot be enabled from the CLI.
 
 1. Go to https://console.firebase.google.com and click **Add project**.
-2. Choose the **existing** `mi-zuri-com` project rather than creating a new one.
+2. Choose the **existing** `dreamwalker-app` project rather than creating a new one.
 3. **Build → Authentication → Get started → Sign-in method → Google → Enable**, then save.
 4. **Project settings → General → Your apps → Web (`</>`)**, register an app called
    `dreamwalker-web`, and copy the `firebaseConfig` block it shows you.
@@ -192,6 +219,18 @@ Part I). None block Phase 2, but #6 shapes how much gets built before launch:
 5. A Polish player picking world news gets the story in Polish. Intended?
 6. **Ship idea mode publicly after Phase 4, or hold launch until news mode lands
    at Phase 6?**
+
+---
+
+## If you ever want it gone
+
+Because the game lives in its own project, removing it completely is:
+
+```bash
+gcloud projects delete dreamwalker-app
+```
+
+That is reversible for 30 days, then permanent.
 
 ---
 
