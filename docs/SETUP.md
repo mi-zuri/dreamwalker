@@ -203,6 +203,6 @@ Part I). None block Phase 2, but #6 shapes how much gets built before launch:
 | Web + backend together | `bun run dev` |
 | Backend only | `bun run dev:backend` |
 | Regenerate frontend API types | `bun run gen:api` (backend must be running) |
-| Backend tests | `bun run test` |
+| Backend tests | `bun run test` — exits 5 ("no tests ran") until Phase 3 adds the map validator suite |
 | Typecheck + build the web app | `cd web && bunx tsc --noEmit && bun run build` |
 | Verify models | `cd backend && uv run python scripts/verify_models.py` |
