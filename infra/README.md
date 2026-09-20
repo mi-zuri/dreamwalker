@@ -86,19 +86,39 @@ stays a deliberate act with a plan to read first.
 
 ## A custom domain
 
-Cloud Run will map `dreamwalker.zur-i.com` directly, with a managed certificate
-and no load balancer — but only once Google can see that you own `zur-i.com`,
-which means verifying it at [Search Console](https://search.google.com/search-console).
-That is the one step no script can do for you. Afterwards:
+Done: the service is live at **https://dreamwalker.zur-i.com**, on a
+Google-managed certificate with no load balancer. Kept here because it is the
+part of a deploy that a script cannot finish on its own.
+
+Cloud Run will map a domain directly, but only once Google can see that you own
+it, which means verifying it at
+[Search Console](https://search.google.com/search-console) under the same
+account that runs `gcloud`. Afterwards:
 
 ```bash
 gcloud beta run domain-mappings create --service=dreamwalker \
   --domain=dreamwalker.zur-i.com --region=europe-west1
 ```
 
-It prints the DNS records to add, then takes anywhere from 15 minutes to a day
-to issue the certificate. Add the domain to Firebase Auth's authorized domains
-at the same time, or Google sign-in will refuse it.
+It prints the DNS records to add — records generated per mapping, not a fixed
+set you can copy from a guide. Add the domain to Firebase Auth's authorized
+domains at the same time, or Google sign-in will refuse it.
+
+Then wait. Certificate issuance took about fifty minutes here, inside a stated
+window of 15 minutes to 24 hours, and until it finished the mapping reported
+the ACME challenge as "not visible through the public internet" while DNS was
+already correct on every resolver checked. **That message means *not yet*, not
+*misconfigured*** — check `dig +short CNAME <domain>` against the authoritative
+nameservers once, and if it answers, wait rather than change anything.
+
+The Search Console `TXT` record at the apex has to stay in place permanently.
+Google re-checks it, and removing it lapses the ownership the mapping depends
+on.
+
+Two things worth knowing before picking a region: domain mappings are
+unsupported in `europe-central2` (hence `europe-west1`), and your own machine's
+DNS cache will happily keep serving the *old* answer long after the world has
+moved on.
 
 ## What is deliberately not here
 

@@ -501,6 +501,18 @@ Admin SDK, which bypasses rules entirely. The rules exist to stop anything else:
 the web SDK ships in the bundle with the project id in it, and without them a
 stranger could read every saved game from a browser console.
 
+**The custom domain is live.** `https://dreamwalker.zur-i.com` serves the
+service on a Google-managed certificate with no load balancer. `zur-i.com`
+stays on Vercel's nameservers; the subdomain is a `CNAME` to
+`ghs.googlehosted.com`. The certificate took about fifty minutes to issue,
+during which the mapping reported the ACME challenge as "not visible through
+the public internet" even though DNS was already correct on every resolver
+checked - that message means *not yet*, not *misconfigured*.
+
+The Search Console `TXT` record at the apex must stay in place permanently.
+Google re-checks it, and removing it lapses ownership of the verification the
+mapping depends on.
+
 ---
 
 ## Phase 9 decisions
@@ -599,16 +611,6 @@ Worth checking whether the Gemini API key is on the free tier: an image call
 with that key returned `429 RESOURCE_EXHAUSTED`, which suggests free-tier
 limits, and free-tier Lyria usage may cost nothing at all. That would explain
 "costs are fine" and would make live music essentially free.
-
-**The custom domain's certificate.** `zur-i.com` is verified in Google Search
-Console, the mapping exists, and `dreamwalker.zur-i.com` resolves to
-`ghs.googlehosted.com` through Vercel's nameservers and every public resolver
-checked. Google's managed certificate is still issuing - it reports the ACME
-challenge as not yet visible and retries every fifteen minutes, which is
-ordinary inside the stated 15 minute to 24 hour window. The service works on
-its `run.app` URL meanwhile. The Search Console TXT record at the apex must
-stay in place permanently: Google re-checks it, and removing it lapses
-ownership.
 
 **Somebody who is not the author playing a game in production.** Phase 8's
 exit criterion, and the one thing here that is not a code change: it needs a
