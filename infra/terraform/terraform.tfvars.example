@@ -9,9 +9,19 @@ assets_bucket = "mi-zuri-dreamwalker-app-assets"
 # Anyone not on this list is refused at the door, before any generation runs.
 allowed_emails = ["you@example.com"]
 
-alert_email        = "you@example.com"
-billing_account    = ""          # e.g. "01C6F0-..."; empty skips the budget alert
-monthly_budget_usd = 2.40        # roughly 10 PLN
+alert_email     = "you@example.com"
+billing_account = "" # e.g. "01C6F0-..."; empty skips the budget alert
+
+# What the app refuses to spend past, checked before every generation. USD
+# because that is what the models are priced in.
+monthly_budget_usd = 2.40
+
+# The billing alert, which must use the billing account's own currency - any
+# other is rejected as an invalid argument, with no hint as to which one.
+billing_budget = {
+  currency = "PLN"
+  amount   = 10
+}
 
 github_repo = "owner/dreamwalker"
 
