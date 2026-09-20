@@ -27,11 +27,17 @@ class Settings(BaseSettings):
     # the tail: past it the game opens without a picture rather than making
     # the player watch a loading screen for a decoration.
     prologue_image_timeout: float = 6.0
+    # How long the background image pass may keep going. Past the long end of
+    # a game, a picture nobody will see is not worth waiting on quota for.
+    background_image_seconds: float = 600.0
 
     # Lyria RealTime is Gemini-API-only, so the music proxy needs its own key.
     gemini_api_key: str = ""
     music_model: str = "models/lyria-realtime-exp"
     music_mode: Literal["realtime", "loops"] = "realtime"
+    # Music is the one line item with no natural ceiling - every other cost is
+    # paid once per game. Metered per player per day, and capped here.
+    music_daily_minutes: float = 90.0
 
     # "mock" replays recorded fixtures; "fake" runs the real pipeline against a
     # synthetic model. Both spend nothing; only "fake" exercises generation.
@@ -60,8 +66,16 @@ class Settings(BaseSettings):
     # News ingest is lazy: a News game refreshes the pool first, but only when
     # it has to. These two numbers are what "has to" means, and they are the
     # reason an idle month costs nothing.
+    # A kill switch. With ingest off, News mode serves whatever is already
+    # pooled and refuses politely when that runs out - which is what a bad
+    # feed day or a tight budget should look like, and what tests always want.
+    news_ingest_enabled: bool = True
     pool_max_age_hours: float = 6.0
     pool_min_playable: int = 12
+    # A player who has played everything in a healthy pool can trigger one
+    # extra refresh, but not once per attempt - otherwise exhausting the pool
+    # turns every retry into an ingest.
+    pool_retry_minutes: float = 30.0
 
     # Hard monthly spend cap, in USD, checked before every generation.
     monthly_budget_usd: float = 2.40

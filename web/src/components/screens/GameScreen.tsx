@@ -6,6 +6,7 @@ import { Starfield } from '../Starfield';
 import { HighlightedText } from '../HighlightedText';
 import { TileMap } from '../game/TileMap';
 import { LocationImage } from '../game/LocationImage';
+import { useMusicStream } from '../../audio/useMusicStream';
 
 /** Tiles shown around the player in the minimised sidebar map. */
 const SIDEBAR_VIEWPORT = { cols: 27, rows: 13 };
@@ -15,6 +16,9 @@ export function GameScreen() {
     useStore();
   const [draft, setDraft] = useState('');
   const [blocked, setBlocked] = useState(false);
+  // The music follows the player: the backend rebuilds its prompt from
+  // wherever they are, so the scene id is all it needs.
+  const { resume } = useMusicStream(game?.game_id ?? null, game?.current_scene.location_id);
 
   useEffect(() => {
     if (!blocked) return;
@@ -32,6 +36,15 @@ export function GameScreen() {
   const here = destinationAt(game.map, game.player_pos);
   const placeName = here ? here.name : t(uiLanguage, 'inTransit');
   const left = game.map.destinations.length - game.resolved.length;
+
+  // Browsers will not start audio until the player has interacted with the
+  // page, so every click that matters also nudges it.
+  function withAudio<T>(fn: (arg: T) => void) {
+    return (arg: T) => {
+      resume();
+      fn(arg);
+    };
+  }
 
   async function submitAnswer() {
     const text = draft.trim();
@@ -112,7 +125,7 @@ export function GameScreen() {
                 playerPos={shownPos}
                 resolved={game.resolved}
                 unlocked={game.unlocked}
-                onMove={moveTo}
+                onMove={withAudio(moveTo)}
                 disabled={busy}
                 fit
                 onBlocked={() => setBlocked(true)}
@@ -159,7 +172,7 @@ export function GameScreen() {
                 game.choices.map((choice, i) => (
                   <button
                     key={choice.id}
-                    onClick={() => choose(choice.id)}
+                    onClick={withAudio(() => choose(choice.id))}
                     disabled={busy}
                     className="ascii-btn w-full p-2 text-left text-sm"
                   >
@@ -170,7 +183,7 @@ export function GameScreen() {
               ) : (
                 /* The opening scene, before the player has anywhere to be. */
                 <button
-                  onClick={setOff}
+                  onClick={withAudio(setOff)}
                   className="ascii-btn w-full p-3 text-sm text-gray-200 border-indigo-800 hover:border-indigo-600"
                 >
                   {t(uiLanguage, 'setOff')}

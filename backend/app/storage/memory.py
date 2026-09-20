@@ -27,6 +27,7 @@ class MemoryStore:
         self._pool: dict[str, list[Event]] = defaultdict(list)
         self._refreshed: dict[str, datetime] = {}
         self._played: dict[str, list[PlayedEvent]] = defaultdict(list)
+        self._music: dict[tuple[str, str], float] = defaultdict(float)
 
     async def put_state(self, uid: str, state: GameState) -> None:
         self._states[(uid, state.game_id)] = state
@@ -97,6 +98,16 @@ class MemoryStore:
 
     async def played_events(self, uid: str, limit: int = 100) -> list[PlayedEvent]:
         return self._played[uid][:limit]
+
+    def _today(self) -> str:
+        return datetime.now(UTC).strftime("%Y-%m-%d")
+
+    async def add_music_minutes(self, uid: str, minutes: float) -> float:
+        self._music[(uid, self._today())] += minutes
+        return self._music[(uid, self._today())]
+
+    async def music_minutes(self, uid: str) -> float:
+        return self._music[(uid, self._today())]
 
     def _month(self) -> str:
         return datetime.now(UTC).strftime("%Y-%m")

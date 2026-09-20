@@ -96,6 +96,7 @@ def test_the_first_location_is_never_locked():
         language="en",
         title="T",
         premise="P",
+        content_note="",
         locations=[
             PlannedLocationDraft(name=f"L{i}", description="d", visual="v", locked=True)
             for i in range(4)
@@ -112,6 +113,7 @@ def test_a_plan_longer_than_the_map_can_hold_is_trimmed():
         language="en",
         title="T",
         premise="P",
+        content_note="",
         locations=[
             PlannedLocationDraft(name=f"L{i}", description="d", visual="v") for i in range(9)
         ],
@@ -130,6 +132,7 @@ async def test_open_questions_stay_within_their_budget():
             language="en",
             title="T",
             premise="P",
+            content_note="",
             locations=[
                 PlannedLocationDraft(name=f"L{i}", description="d", visual="v") for i in range(4)
             ],

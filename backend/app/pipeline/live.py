@@ -13,6 +13,7 @@ which is fifteen to twenty seconds they were going to spend anyway.
 """
 
 import logging
+import time
 from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
 from string import ascii_uppercase
@@ -34,11 +35,12 @@ from app.models.game import (
     Stage,
     StyleCard,
 )
-from app.models.plan import PlannedLocation, ScenesDraft, StoryPlan
+from app.models.plan import Beat, PlannedLocation, ScenesDraft, StoryPlan
 from app.models.script import GameScript
+from app.news.models import Photo
 from app.pipeline import ending as ending_stage
 from app.pipeline.images import STAGE as IMAGE_STAGE
-from app.pipeline.images import generate_image, image_for, prompt_for
+from app.pipeline.images import SourcedImage, generate_image, image_for, prompt_for
 from app.pipeline.map_validator import validate_map
 from app.pipeline.prompts import IMAGE_RULE
 from app.pipeline.scenes import assemble, write_scenes
@@ -62,6 +64,10 @@ class OpenedGame:
     plan: StoryPlan
     style: StyleCard
     safety_class: SafetyClass = "allowed"
+    #: News mode's press photos, matched to locations after the player is
+    #: already playing - matching is a model call and does not belong on the
+    #: critical path when the reward is a picture.
+    photos: tuple[Photo, ...] = ()
 
 
 #: The opening scene's id. It is not a destination, so it never appears on the
@@ -132,6 +138,9 @@ async def open_game(
     content_note: str = "",
     source_note: str | None = None,
     mode: Mode | None = None,
+    canon: list[Beat] | None = None,
+    opening_image: SourcedImage | None = None,
+    photos: tuple[Photo, ...] = (),
 ) -> OpenedGame:
     """Everything the player needs to see something. Scenes are not in here.
 
@@ -155,6 +164,8 @@ async def open_game(
     if plan.language != language:
         # The stage echoes the language back precisely so this is catchable.
         log.warning("plan came back in %s, expected %s", plan.language, language)
+    if canon:
+        apply_canon(plan, canon)
 
     await progress("map")
     game_map = map_for(plan, style, crc32(game_id.encode()))
@@ -163,7 +174,10 @@ async def open_game(
         raise RuntimeError(f"generated map is unplayable:\n{report.as_diagnostics()}")
 
     await progress("images")
-    prologue_url = await _prologue_image(llm, assets, plan, style)
+    # News mode usually has a real photograph of the event, which is free and
+    # immediate; only Idea mode has to generate the one image on the critical
+    # path.
+    opening = opening_image or SourcedImage(await _prologue_image(llm, assets, plan, style))
 
     await progress("music")
     await progress("finishing")
@@ -175,7 +189,7 @@ async def open_game(
         plan=plan,
         style=style,
         game_map=game_map,
-        prologue_url=prologue_url,
+        opening=opening,
         safety_class=safety_class,
         content_note=content_note,
         source_note=source_note,
@@ -244,7 +258,7 @@ def _state(
     plan: StoryPlan,
     style: StyleCard,
     game_map: GameMap,
-    prologue_url: str | None,
+    opening: SourcedImage,
     safety_class: SafetyClass,
     content_note: str,
     source_note: str | None,
@@ -266,11 +280,42 @@ def _state(
             id=PROLOGUE,
             location_id=PROLOGUE,
             text=plan.premise,
-            image_url=prologue_url,
+            image_url=opening.url,
+            image_credit=opening.credit,
         ),
         choices=[],
         beat_progress=[BeatProgress(beat_id=b.id, status="pending") for b in plan.beats],
     )
+
+
+def apply_canon(plan: StoryPlan, canon: list[Beat]) -> StoryPlan:
+    """Replace the plan's invented beats with what actually happened.
+
+    The plan is asked for one beat per canon beat, in the same order, so the
+    canon supplies the title, the summary and the citations while the plan
+    supplies the location each one is tied to. Getting that pairing from the
+    model by name would mean trusting it to echo an id; getting it by position
+    only requires it to count.
+    """
+    beats: list[Beat] = []
+    for order, source in enumerate(canon):
+        if order < len(plan.beats):
+            location_ref = plan.beats[order].location_ref
+        else:
+            location_ref = plan.locations[min(order, len(plan.locations) - 1)].id
+        beats.append(
+            Beat(
+                id=f"beat-{order + 1}",
+                order=order,
+                title=source.title,
+                summary=source.summary,
+                location_ref=location_ref,
+                certainty=source.certainty,
+                sources=source.sources,
+            )
+        )
+    plan.beats = beats
+    return plan
 
 
 async def fill_images(
@@ -279,6 +324,8 @@ async def fill_images(
     script: GameScript,
     locations: list[PlannedLocation],
     style: StyleCard,
+    *,
+    preset: dict[str, SourcedImage] | None = None,
 ) -> int:
     """Generate the per-location images, in arrival order, into an existing script.
 
@@ -286,14 +333,24 @@ async def fill_images(
     the whole project, so the question is never how fast they can all be made
     but which one is made first - and that should be the one the player is
     walking towards. One at a time also means an abandoned game stops costing
-    money almost immediately.
+    money almost immediately, and the whole pass gives up at a deadline rather
+    than queueing behind quota for a game nobody is still playing.
     """
+    preset = preset or {}
+    deadline = time.monotonic() + settings.background_image_seconds
     filled = 0
     for location in locations:
+        if time.monotonic() > deadline:
+            # Past this the player has almost certainly finished or left, and
+            # a picture nobody will see is not worth waiting on image quota for.
+            log.info("stopped filling images for %s at the deadline", script.game_id)
+            break
         scene = script.scenes.get(location.id)
         if scene is None or scene.image_url:
             continue
-        sourced = await image_for(llm, assets, location, style)
+        # A real photograph of the real place beats a generated one, and costs
+        # nothing against the two-a-minute generation quota.
+        sourced = preset.get(location.id) or await image_for(llm, assets, location, style)
         if sourced.url:
             scene.image_url = sourced.url
             scene.image_credit = sourced.credit
@@ -312,6 +369,7 @@ __all__ = [
     "IMAGE_STAGE",
     "PROLOGUE",
     "OpenedGame",
+    "apply_canon",
     "fill_images",
     "fill_scenes",
     "idea_brief",

@@ -87,6 +87,11 @@ class StoryPlanDraft(BaseModel):
     beats: list[BeatDraft]
     #: How many locations should ask an open question (0-2).
     open_question_count: int = 1
+    #: What the player is about to encounter, in their own language - safe
+    #: mode only, and an empty string otherwise. Required rather than
+    #: defaulted: a model that may omit a field does omit it, and the fallback
+    #: is the English note from ingest, which a Polish player should not see.
+    content_note: str
 
 
 class ChoiceDraft(BaseModel):

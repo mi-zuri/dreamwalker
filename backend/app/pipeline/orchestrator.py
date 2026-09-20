@@ -29,6 +29,7 @@ from app.models.game import EndingComparison, GameState, NewGameRequest, Stage
 from app.models.script import GameScript
 from app.pipeline import ending as ending_stage
 from app.pipeline import live
+from app.pipeline.photos import match_photos
 from app.settings import settings
 from app.storage.assets import AssetStore, get_assets
 from app.storage.base import GameStore
@@ -255,8 +256,14 @@ async def _after_open(
             gate.set()
 
     try:
+        preset = await match_photos(llm, opened.plan, list(opened.photos)) if opened.photos else {}
         filled = await live.fill_images(
-            llm, assets, opened.script, opened.plan.locations, opened.state.style_card
+            llm,
+            assets,
+            opened.script,
+            opened.plan.locations,
+            opened.state.style_card,
+            preset=preset,
         )
         if filled:
             await store.put_script(uid, opened.script)

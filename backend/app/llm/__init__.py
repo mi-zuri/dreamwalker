@@ -12,11 +12,17 @@ from app.settings import settings
 
 
 def make_llm() -> LLM:
-    if settings.llm_mode == "fake":
-        from app.llm.fake import FakeLLM
+    """The model for this mode.
 
-        return FakeLLM()
+    `mock` resolves to the fake rather than to Vertex. Mock games never ask
+    for a model at all, so this is unreachable on the normal path - but if
+    something ever does reach it, spending nothing is the right failure.
+    """
+    if settings.llm_mode == "live":
+        from app.llm.vertex import VertexLLM
 
-    from app.llm.vertex import VertexLLM
+        return VertexLLM()
 
-    return VertexLLM()
+    from app.llm.fake import FakeLLM
+
+    return FakeLLM()

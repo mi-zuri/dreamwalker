@@ -21,7 +21,12 @@ from app.models.plan import (
     StoryPlan,
     StoryPlanDraft,
 )
-from app.pipeline.prompts import SAFE_MODE_RULE, language_rule, style_block
+from app.pipeline.prompts import (
+    LANGUAGE_NAME,
+    SAFE_MODE_RULE,
+    language_rule,
+    style_block,
+)
 from app.pipeline.style_card import style_prompt
 
 STAGE = "plan"
@@ -32,7 +37,19 @@ MAX_LOCKED = 2
 
 
 def _instructions(language: Language, safety_class: SafetyClass) -> str:
-    safe = f"\n\nSAFETY:\n{SAFE_MODE_RULE}" if safety_class == "safe_mode" else ""
+    safe_mode = safety_class == "safe_mode"
+    safe = f"\n\nSAFETY:\n{SAFE_MODE_RULE}" if safe_mode else ""
+    # Naming the language outright rather than saying "the story language":
+    # measured, the model writes the premise in Polish and this field in
+    # English when it is only told the rule once, in the abstract.
+    note = (
+        f"one sentence written in {LANGUAGE_NAME[language]}, naming plainly what the "
+        f"player is about to encounter. It is shown before the game starts, with a way "
+        f"to decline. It must be in {LANGUAGE_NAME[language]}, like everything else "
+        f"the player reads."
+        if safe_mode
+        else "an empty string. This story needs no content warning."
+    )
     return f"""You plan short interactive stories. A player finishes one in 2 to 10 minutes: \
 they walk a small map, arrive at each place once, read a short scene and pick one of \
 three actions.
@@ -54,7 +71,8 @@ Never any text, letters or signage.
 - `beats`: one per location, in the order they should happen, each with the \
 `location_index` it belongs to. A beat is what happens there, in one or two sentences.
 - `open_question_count`: 1, or 2 when the story has two moments worth the player \
-writing a sentence of their own.{safe}"""
+writing a sentence of their own.
+- `content_note`: {note}{safe}"""
 
 
 async def make_plan(
@@ -72,6 +90,10 @@ async def make_plan(
         StoryPlanDraft,
         system=_instructions(language, safety_class),
     )
+    # The note that reaches the player is the one written in their language;
+    # the English one from ingest is the fallback if the stage skipped it.
+    if safety_class == "safe_mode":
+        content_note = draft.content_note.strip() or content_note
     return normalize_plan(draft, language=language, content_note=content_note)
 
 

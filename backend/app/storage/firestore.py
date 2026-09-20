@@ -8,6 +8,7 @@ Layout, per the plan:
     users/{uid}/replays/{game_id}
     users/{uid}/style_cards/{game_id}       per-player anti-repetition history
     users/{uid}/played_events/{event_id}    per-player news dedup
+    users/{uid}/music/{YYYY-MM-DD}          music minutes, metered not billed
     events/{region}/pool/{event_id}         the regional event pool
     events/{region}                         pool metadata (last refresh)
     budget/{YYYY-MM}                       month-to-date spend
@@ -168,6 +169,20 @@ class FirestoreStore:
             .limit(limit)
         )
         return [PlayedEvent(**doc.to_dict()) async for doc in query.stream()]
+
+    def _music_doc(self, uid: str):
+        day = datetime.now(UTC).strftime("%Y-%m-%d")
+        return self._user(uid).collection("music").document(day)
+
+    async def add_music_minutes(self, uid: str, minutes: float) -> float:
+        doc = self._music_doc(uid)
+        await doc.set({"minutes": firestore.Increment(minutes)}, merge=True)
+        snap = await doc.get()
+        return float((snap.to_dict() or {}).get("minutes", 0.0))
+
+    async def music_minutes(self, uid: str) -> float:
+        snap = await self._music_doc(uid).get()
+        return float((snap.to_dict() or {}).get("minutes", 0.0)) if snap.exists else 0.0
 
     def _budget_doc(self):
         month = datetime.now(UTC).strftime("%Y-%m")

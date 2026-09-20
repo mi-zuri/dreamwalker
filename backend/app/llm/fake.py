@@ -221,6 +221,11 @@ def _plan(fake: FakeLLM, prompt: str, system: str) -> StoryPlanDraft:
             for i, loc in enumerate(locations)
         ],
         open_question_count=1 + (rng.random() > 0.5),
+        content_note=(
+            "This is based on a real event in which people were hurt."
+            if "SAFETY:" in system
+            else ""
+        ),
     )
 
 

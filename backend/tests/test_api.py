@@ -289,3 +289,58 @@ def test_a_player_who_outruns_the_scenes_waits_for_them(client, monkeypatch):
     assert state["view"] == "scene"
     assert state["current_scene"]["location_id"] == first.location_id
     assert state["choices"], "the scene the player waited for has to have choices"
+
+
+def test_a_generated_news_game_is_played_and_scored(client, monkeypatch):
+    """The whole News path through the real API, from a seeded pool."""
+    import asyncio
+
+    from app.settings import settings
+    from app.storage import get_store
+    from tests.test_news_mode import EVAL_CASES, make_event
+
+    monkeypatch.setattr(settings, "llm_mode", "fake")
+    store = get_store()
+    pool = [
+        make_event(title, ident=str(index))
+        for index, (title, safety) in enumerate(EVAL_CASES.values())
+        if safety == "allowed"
+    ]
+    for index, event in enumerate(pool):
+        event.embedding = [1.0 if i == index else 0.0 for i in range(len(pool))]
+    asyncio.run(store.put_pool("world", pool))
+
+    created = client.post(
+        "/api/games",
+        json={"mode": "news", "region": "world", "story_language": "en", "ui_language": "en"},
+    )
+    game_id = created.json()["game_id"]
+    assert _load_stream(client, game_id)[-1] == {"ready": True}
+
+    state = client.get(f"/api/games/{game_id}").json()
+    assert state["mode"] == "news"
+    assert state["source_note"], "a real-events disclaimer runs for the whole game"
+    assert state["beat_progress"], "news games are scored against canon beats"
+
+    state = client.post(f"/api/games/{game_id}/set-off").json()
+    state = _play(client, state)
+    assert state["finished"] is True
+
+    ending = client.get(f"/api/games/{game_id}/ending").json()
+    assert isinstance(ending["match_score"], float)
+    assert ending["canon"], "the player can see what actually happened"
+    assert ending["sources"], "and go and read it"
+
+
+def test_an_exhausted_news_pool_is_a_friendly_error(client, monkeypatch):
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "llm_mode", "fake")
+    res = client.post(
+        "/api/games",
+        json={"mode": "news", "region": "pl", "story_language": "pl", "ui_language": "pl"},
+    )
+    game_id = res.json()["game_id"]
+    frames = _load_stream(client, game_id)
+    assert frames[-1]["kind"] == "pool_empty"
+    assert frames[-1]["detail"], "the message is shown to the player, so it must say something"

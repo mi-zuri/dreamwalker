@@ -69,4 +69,16 @@ class GameStore(Protocol):
         """Adds to the month-to-date total and returns the new value."""
         ...
 
+    async def add_music_minutes(self, uid: str, minutes: float) -> float:
+        """Adds to this player's minutes for today and returns the new total."""
+        ...
+
+    async def music_minutes(self, uid: str) -> float:
+        """Minutes this player has listened to today.
+
+        Metered rather than billed: Lyria RealTime has no published price, so
+        counting and capping is the honest treatment until it does.
+        """
+        ...
+
     async def month_spend(self) -> float: ...

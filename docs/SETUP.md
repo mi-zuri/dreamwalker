@@ -255,14 +255,25 @@ LLM_MODE=mock
 MUSIC_MODE=realtime
 ```
 
-`GCP_LOCATION=global` is where Vertex serves Gemini from. `LLM_MODE=mock` stays
-until Phase 4 — the pipeline runs on recorded fixtures and spends nothing.
-`backend/.env` is gitignored.
+`GCP_LOCATION=global` is where Vertex serves Gemini from. `backend/.env` is
+gitignored.
 
-Optional, and still free: add `MOCK_MAP_SOURCE=generated` to play a mock game
-on a freshly generated floor plan instead of the grid the fixture recorded.
-The locations, the locks and the story stay the same; only the map changes,
-and it changes with every new game.
+### Which `LLM_MODE` to run in
+
+| mode | what it does | cost |
+|---|---|---|
+| `mock` | replays four recorded games; never runs the pipeline | nothing |
+| `fake` | runs the **real** pipeline against a synthetic model | nothing |
+| `live` | Vertex AI | about $0.10–$0.20 a game |
+
+`fake` is the one to develop against. It exercises planning, map generation,
+scene assembly, the turn engine and the ending — everything a live game does
+except the model — so a bug in any of them shows up without spending anything.
+`mock` never touches that code at all.
+
+Optional, and still free under `mock`: add `MOCK_MAP_SOURCE=generated` to play
+on a freshly generated floor plan instead of the grid the fixture recorded. The
+locations, the locks and the story stay the same; only the map changes.
 
 Check the key landed exactly once:
 
@@ -449,3 +460,21 @@ That is reversible for 30 days, then permanent.
 | Backend tests | `bun run test` |
 | Typecheck + build the web app | `cd web && bunx tsc --noEmit && bun run build` |
 | Verify models | `cd backend && uv run python scripts/verify_models.py` |
+| Check live music works | `cd backend && uv run python -m app.music.cli check` |
+| Build the fallback music loops | `cd backend && uv run python -m app.music.cli build-loops` |
+| Collect news, spending nothing | `cd backend && uv run python -m app.news.cli collect --region pl` |
+| Refresh a region's event pool | `cd backend && LLM_MODE=live uv run python -m app.news.cli refresh --region pl` |
+| See what is in a pool | `cd backend && uv run python -m app.news.cli show --region pl` |
+
+### Playing a real game locally
+
+```bash
+cd backend
+sed -i '' 's/^LLM_MODE=.*/LLM_MODE=live/' .env     # about $0.15 a game
+cd .. && bun run dev
+```
+
+News mode fills its region's pool on the first game, which adds about thirty
+seconds to that one load; every game after it starts in around ten. Set
+`NEWS_INGEST_ENABLED=false` to stop collecting entirely and play only what is
+already pooled.

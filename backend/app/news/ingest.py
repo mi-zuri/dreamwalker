@@ -98,9 +98,14 @@ async def ensure_pool(llm: LLM, store: GameStore, region: Region) -> PoolStatus:
     second player in the same hour costs nothing beyond their own game.
     """
     status = await store.pool_status(region)
-    if not _needs_refresh(status):
+    if not settings.news_ingest_enabled or not _needs_refresh(status):
         return status
     return await refresh(llm, store, region)
+
+
+def wants_refresh(status: PoolStatus) -> bool:
+    """Whether the pool is thin or stale, regardless of whether ingest is on."""
+    return _needs_refresh(status) and settings.news_ingest_enabled
 
 
 def _needs_refresh(status: PoolStatus) -> bool:

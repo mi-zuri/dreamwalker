@@ -5,14 +5,17 @@ renders scenes, but every transition goes through `app.pipeline.engine` here,
 against the server's own copy of the state.
 """
 
+import json
+import logging
+from contextlib import suppress
 from datetime import UTC, datetime
 
-from fastapi import Depends, FastAPI, Response
+from fastapi import Depends, FastAPI, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
-from app.auth import CurrentUser
+from app.auth import CurrentUser, verify_ws
 from app.errors import AppError, ErrorKind, app_error_handler
 from app.game.map import destination_at
 from app.media import PALETTES, placeholder_svg
@@ -30,11 +33,14 @@ from app.models.game import (
     StageEvent,
 )
 from app.models.script import GameScript
+from app.music import session as session_module
 from app.pipeline import engine, orchestrator
 from app.settings import settings
 from app.storage import get_store
 from app.storage.assets import get_assets
 from app.storage.base import GameStore
+
+log = logging.getLogger(__name__)
 
 app = FastAPI(title="Dreamwalker API", version="0.1.0")
 app.add_exception_handler(AppError, app_error_handler)
@@ -222,6 +228,50 @@ async def replay(game_id: str, user: CurrentUser, st: GameStore = Store) -> Repl
         return stored
     _, script = await _load(st, user.uid, game_id)
     return _replay_of(script)
+
+
+# ── Music ───────────────────────────────────────────────────────────────
+
+
+@app.websocket("/api/music")
+async def music(ws: WebSocket, game_id: str = "", token: str = "") -> None:
+    """Binary PCM out, `{"location": ...}` in.
+
+    The session lives here rather than in the browser because Lyria has no
+    ephemeral-token support - the API key can never reach a client. The token
+    arrives as a query parameter because a browser WebSocket cannot set
+    headers; it is the same Firebase ID token the REST calls carry.
+    """
+    await ws.accept()
+    st = get_store()
+    try:
+        user = await verify_ws(token)
+        state = await st.get_state(user.uid, game_id)
+        script = await st.get_script(user.uid, game_id)
+    except AppError as exc:
+        await ws.close(code=1008, reason=exc.kind)
+        return
+
+    if state is None or script is None:
+        await ws.close(code=1008, reason="unknown game")
+        return
+    if not await session_module.allowed_minutes(st, user.uid):
+        await ws.send_text(json.dumps({"mode": "off", "reason": "daily_limit"}))
+        await ws.close()
+        return
+
+    session = session_module.MusicSession(
+        ws, state, script, store=st, assets=get_assets(), uid=user.uid
+    )
+    try:
+        await session.run()
+    except WebSocketDisconnect:
+        pass
+    except Exception:
+        log.exception("music session for %s ended badly", game_id)
+    finally:
+        with suppress(RuntimeError):
+            await ws.close()
 
 
 # ── Media ───────────────────────────────────────────────────────────────

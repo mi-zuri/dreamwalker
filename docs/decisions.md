@@ -338,6 +338,92 @@ better than 80% of items.
 
 ---
 
+## Phase 6 decisions
+
+**The canon comes from the dossier, not from the plan.** The plan stage decides
+where the player walks and is explicitly asked for one location per canon beat,
+in order; the titles, summaries and citations are then overwritten with what the
+dossier recorded. Pairing by position only asks the model to count. Pairing by
+name would ask it to echo an id, which it eventually will not.
+
+**A private individual's name is dropped during enrichment**, before any prompt
+sees it. Filtering later would mean the name existed somewhere it could leak
+from; this way nothing downstream ever has it.
+
+**The content note is written by the plan stage, in the player's language.**
+Ingest writes an English one for the logs. Measured: telling the model "write
+this in the story language" is not enough - it writes the premise in Polish and
+the note in English anyway. Naming the language outright ("written in Polish")
+fixes it. The field is also *required* rather than defaulted, because a model
+that may omit a field does omit it.
+
+**Press photos are matched on their captions, not by looking again.** Every
+photo was already described by a vision model during the ingest safety check, so
+matching is a text call over captions and location descriptions - a few hundred
+tokens instead of re-uploading four images, using the same information. A photo
+below 0.5 confidence is left unused: a wrong photograph of a real event is worse
+than a generated picture.
+
+**Photos of war are frequently refused, and that is correct.** The Polish live
+run drew a bombardment story and kept none of its photographs. Wikipedia-sourced
+World events carry no photographs at all. Both fall through to generated images,
+which is the designed behaviour rather than a failure.
+
+**A pool that can still serve is refreshed behind the player.** Measured: a
+cold-pool News game took 40s to open, because collecting six feeds, clustering
+200 articles and scoring 80 events happened in front of the player. With the
+refresh moved behind them, the same game opens in **10.0s**. Only a genuinely
+empty pool still blocks.
+
+**Measured, live:** a Polish safe-mode game about drone incursions and a World
+game about a Japan-Fiji rugby final. Both produced valid maps, canon beats with
+citations, and playable runs to the ending. $0.134 and $0.200.
+
+---
+
+## Phase 7 decisions
+
+**Lyria RealTime works, and there is still no published price.** Verified live
+through the app's own wrapper: `models/lyria-realtime-exp` opens, streams 48kHz
+stereo 16-bit PCM at 192,000 bytes per second of audio, and steers on a prompt
+change. What a minute of it costs is not documented anywhere, so it is **metered
+rather than billed**: minutes are counted per player per day and capped, and no
+invented number goes into the spend total. `python -m app.music.cli check` is
+how that gets re-measured.
+
+**The loop fallback is captured from Lyria, not from `lyria-3-clip-preview`.**
+That model exists on the Gemini API but the installed SDK has no method that
+reaches it, and hand-rolling a REST call for a fallback path is a bad trade.
+Capturing twenty seconds per mood from RealTime uses an API that is already
+verified, gives the same model family and the same prompts, and costs six short
+sessions once. `python -m app.music.cli build-loops`.
+
+**The fallback is a URL, not a stream.** Streaming a twenty-second loop back
+over the socket for twelve minutes would be the same bytes over and over. The
+browser is handed the WAV's URL and loops it itself, which also lets it cache.
+
+**Sessions are capped at twelve minutes.** Cloud Run bills a WebSocket for as
+long as it is open, and twelve minutes is past the long end of a 2-10 minute
+game. Music is the only line item with no natural ceiling; everything else is
+paid once per game.
+
+**The music follows the player.** The client sends the location id it is looking
+at; the backend rebuilds the prompt from the style card's mood axis and that
+location's English `visual` line. The old code's "skip the call if the prompt
+string is unchanged" guard is kept - it was the only thing stopping that version
+calling the API on every step.
+
+**The token rides in the query string, and only here.** A browser cannot set
+headers on a WebSocket. That puts the token in access logs, which is why the SSE
+stream deliberately does not do the same - it reads its body with `fetch` so its
+token can stay in a header.
+
+**`server/` is gone.** Its last live responsibility was the Lyria proxy. Its
+`.env`, `node_modules` and `dist` are untracked and were left on disk rather
+than deleted, because deleting an untracked `.env` is unrecoverable.
+
+---
+
 ## Still needed
 
 **The actual Lyria RealTime cost.** At a 10 PLN budget this is no longer a

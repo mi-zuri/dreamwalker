@@ -398,7 +398,28 @@ async def test_a_refresh_that_finds_nothing_leaves_the_pool_alone():
     assert after.total == before.total > 0
 
 
-async def test_a_deep_fresh_pool_is_not_refreshed_again():
+@pytest.fixture
+def ingest_on():
+    """Ingest is off in tests by default; these cases drive it deliberately."""
+    from app.settings import settings
+
+    settings.news_ingest_enabled = True
+    yield
+    settings.news_ingest_enabled = False
+
+
+async def test_ingest_can_be_switched_off_entirely(ingest_on):
+    """The kill switch, for a bad feed day or a tight budget."""
+    from app.settings import settings
+
+    llm, store = FakeLLM(), MemoryStore()
+    settings.news_ingest_enabled = False
+    status = await ingest.ensure_pool(llm, store, "pl")
+    assert status.total == 0
+    assert llm.usage.usd == 0
+
+
+async def test_a_deep_fresh_pool_is_not_refreshed_again(ingest_on):
     """This is the cost control: a second player in the same hour is free."""
     llm, store = FakeLLM(), MemoryStore()
     with respx.mock as mock:

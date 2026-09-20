@@ -13,6 +13,11 @@ def fresh_store():
     settings.auth_mode = "dev"
     settings.storage_mode = "memory"
     settings.mock_stage_scale = 0.0
+    # No test may reach the network. Ingest is off by default here; the tests
+    # that do want a refresh turn it back on and drive it through recorded
+    # fixtures with `respx`.
+    settings.news_ingest_enabled = False
+    settings.pool_min_playable = 0
     get_store.cache_clear()
     reset_assets()
     yield
