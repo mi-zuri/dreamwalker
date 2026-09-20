@@ -34,7 +34,7 @@ Open http://localhost:5174 — sign-in is faked, everything runs on mock data.
 
 Try: leave the idea box empty and press BEGIN for a news run; type something in
 it for an idea run; switch `story language` and `interface` independently; click
-`[mocks]` bottom-right to force error screens or jump between screens.
+`[dev]` bottom-right to force error screens or jump between screens.
 
 To run the API alongside it (health check only for now):
 
@@ -396,25 +396,22 @@ Two things there only you can do:
 - **The invite list.** `allowed_emails` in `infra/terraform/terraform.tfvars`.
   Anyone not on it gets the login screen and nothing else. It is the strongest
   cost control the project has.
-- **The custom domain.** Cloud Run maps `dreamwalker.zur-i.com` directly, with
-  no load balancer, once `zur-i.com` is verified in
-  [Search Console](https://search.google.com/search-console). Until then the
-  service lives on its `run.app` URL, which works completely.
+- **The custom domain.** Done — the service is live at
+  **https://dreamwalker.zur-i.com**, on a Google-managed certificate with no
+  load balancer. The step no script can do is verifying `zur-i.com` in
+  [Search Console](https://search.google.com/search-console) under the same
+  account that runs `gcloud`; `infra/README.md` has the rest, including why a
+  pending certificate reports DNS as misconfigured when it is not.
 
 ---
 
-## 9. Answer the open design questions
+## 9. Nothing left to decide
 
-Five are still open from the plan (`~/.claude/plans/task-plan-a-rosy-tulip.md`,
-Part I). None block Phase 2, but #6 shapes how much gets built before launch:
-
-1. Keep the name **DREAMWALKER**? (I kept it; it is a one-line change.)
-2. Idea-mode ending has no match score — already built that way. Confirm?
-3. Should idea mode also avoid repeating *ideas* per player, or only style cards?
-4. Replay: full step-through (built) or a condensed transcript?
-5. A Polish player picking world news gets the story in Polish. Intended?
-6. **Ship idea mode publicly after Phase 4, or hold launch until news mode lands
-   at Phase 6?**
+The design questions this section used to list are all answered, in
+[`decisions.md`](decisions.md) — the name, the Idea-mode ending, per-player
+anti-repetition, replay fidelity, story language for world news, and whether to
+ship before news mode landed. That page is the record; this one is the
+runbook.
 
 ---
 

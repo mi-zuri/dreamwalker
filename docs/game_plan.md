@@ -1,4 +1,20 @@
+> **Superseded. This is the original design, not the shipped game.**
+>
+> Almost nothing below survives. The psychological metrics, luck and
+> turbulence, the stability rules and wake conditions, the depth system and its
+> 87 steps, the inventory, the hallucinations and timed events — all of it was
+> cut in the rebuild, along with the sequential five-agent turn loop it
+> depended on. What replaced it is a 2–10 minute walk across a small ASCII map
+> with three mechanics, in two modes, one of which is scored against a real
+> news event.
+>
+> For the game that exists, read [architecture.md](architecture.md); for why it
+> is the way it is, [decisions.md](decisions.md). This file is kept only as the
+> record of where the project started.
+
 Make it open world multiplayer with a big map, where people can navigate and influence the world around?
+
+---
 
 # 🌙 DREAMWALKER
 

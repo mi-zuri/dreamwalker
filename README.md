@@ -74,3 +74,9 @@ real Google Cloud project.
 | [docs/safety.md](docs/safety.md) | What news mode refuses, and how the rest is handled |
 | [docs/style-cards.md](docs/style-cards.md) | The style catalog, generated from the code |
 | [infra/README.md](infra/README.md) | Deploying it, and what is deliberately not deployed |
+
+Two files in `docs/` are history rather than documentation, and say so at the
+top: [docs/game_plan.md](docs/game_plan.md) is the original design, almost none
+of which survived the rebuild, and
+[docs/open-questions.md](docs/open-questions.md) is the question sheet that
+`decisions.md` answers.

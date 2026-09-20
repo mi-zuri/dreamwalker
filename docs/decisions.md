@@ -613,7 +613,9 @@ limits, and free-tier Lyria usage may cost nothing at all. That would explain
 "costs are fine" and would make live music essentially free.
 
 **Somebody who is not the author playing a game in production.** Phase 8's
-exit criterion, and the one thing here that is not a code change: it needs a
-real Google sign-in. Add the address to `allowed_emails` in
-`infra/terraform/terraform.tfvars` and `tofu apply` - a new revision, no
-rebuild.
+exit criterion. Production sign-in itself is no longer untested - a real Google
+account on the invite list signs in and plays through
+`https://dreamwalker.zur-i.com` - but both addresses on that list are the
+author's, so the criterion as written is still open. Add a third party to
+`allowed_emails` in `infra/terraform/terraform.tfvars` and `tofu apply`: a new
+revision, no rebuild.

@@ -1,5 +1,11 @@
 # Open questions
 
+> **All seventeen of these are answered.** The answers, and what they changed,
+> are in [decisions.md](decisions.md). This page is kept as the record of what
+> was asked and what was recommended at the time — useful for reading the
+> decisions against the reasoning they were made from, and nothing here should
+> be treated as still open.
+
 Everything I need a decision on. Each has my recommendation, so you can reply
 "defaults except 3 and 9" and I will take it from there.
 
