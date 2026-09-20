@@ -357,9 +357,18 @@ VITE_FIREBASE_PROJECT_ID=...
 VITE_FIREBASE_APP_ID=...
 ```
 
-These four values are **public by design** — they identify the project, they do
-not authorise anything. Security comes from Firestore rules plus the backend
-verifying ID tokens on every request. `web/.env.local` is gitignored regardless.
+These values are **public by design** — they identify the project, they do not
+authorise anything. Security comes from Firestore rules plus the backend
+verifying ID tokens on every request.
+
+> **Since Phase 8 the frontend no longer reads `web/.env.local`.** It asks the
+> backend for this config at boot, from `/api/config`, so one built image runs
+> anywhere and `AUTH_MODE` on the backend is the only switch that decides
+> whether this install has real accounts. To exercise Google sign-in locally,
+> put the same values in `backend/.env` as `FIREBASE_API_KEY`,
+> `FIREBASE_AUTH_DOMAIN`, `FIREBASE_APP_ID`, `FIREBASE_STORAGE_BUCKET` and
+> `FIREBASE_MESSAGING_SENDER_ID`, and set `AUTH_MODE=firebase`. Leave
+> `AUTH_MODE=dev` and sign-in stays a local stub on both sides.
 
 ### Checking it worked
 
@@ -375,7 +384,26 @@ it, you should see a `google.com` entry with `"enabled": true`.
 
 ---
 
-## 8. Answer the open design questions
+## 8. Deploying it
+
+Everything above is the local half. Putting it on the internet is
+`infra/scripts/deploy.sh`, and [`infra/README.md`](../infra/README.md) is the
+guide to it — one Cloud Run service in `europe-west1` serving both the API and
+the frontend, scaling to zero when nobody is playing.
+
+Two things there only you can do:
+
+- **The invite list.** `allowed_emails` in `infra/terraform/terraform.tfvars`.
+  Anyone not on it gets the login screen and nothing else. It is the strongest
+  cost control the project has.
+- **The custom domain.** Cloud Run maps `dreamwalker.zur-i.com` directly, with
+  no load balancer, once `zur-i.com` is verified in
+  [Search Console](https://search.google.com/search-console). Until then the
+  service lives on its `run.app` URL, which works completely.
+
+---
+
+## 9. Answer the open design questions
 
 Five are still open from the plan (`~/.claude/plans/task-plan-a-rosy-tulip.md`,
 Part I). None block Phase 2, but #6 shapes how much gets built before launch:

@@ -9,9 +9,12 @@ import json
 import logging
 from contextlib import suppress
 from datetime import UTC, datetime
+from pathlib import Path
 
 from fastapi import Depends, FastAPI, Response, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
@@ -107,6 +110,45 @@ def health() -> Health:
         llm_mode=settings.llm_mode,
         music_mode=settings.music_mode,
         auth_mode=settings.auth_mode,
+    )
+
+
+class FirebaseConfig(BaseModel):
+    """The browser's Firebase project identifiers. Public by design."""
+
+    api_key: str
+    auth_domain: str
+    project_id: str
+    app_id: str
+    storage_bucket: str
+    messaging_sender_id: str
+
+
+class ClientConfig(BaseModel):
+    auth_mode: str
+    firebase: FirebaseConfig | None
+
+
+@app.get("/api/config")
+def client_config() -> ClientConfig:
+    """What the frontend needs to know before it can render anything.
+
+    Serving this rather than baking it into the bundle is what lets one image
+    run locally and in deployment: the container has no build-time knowledge
+    of which project it belongs to.
+    """
+    if settings.auth_mode == "dev" or not settings.firebase_api_key:
+        return ClientConfig(auth_mode=settings.auth_mode, firebase=None)
+    return ClientConfig(
+        auth_mode=settings.auth_mode,
+        firebase=FirebaseConfig(
+            api_key=settings.firebase_api_key,
+            auth_domain=settings.firebase_auth_domain,
+            project_id=settings.gcp_project,
+            app_id=settings.firebase_app_id,
+            storage_bucket=settings.firebase_storage_bucket,
+            messaging_sender_id=settings.firebase_messaging_sender_id,
+        ),
     )
 
 
@@ -319,3 +361,29 @@ def force_error(req: ForceErrorRequest) -> dict[str, str | None]:
         raise AppError("network", "dev endpoints are mock-mode only", status_code=404)
     _forced_error = req.kind
     return {"armed": _forced_error}
+
+
+# ── The frontend ────────────────────────────────────────────────────────
+
+# Registered last, so every route above wins the match. In deployment this
+# makes the single Cloud Run service serve the app as well as the API, which
+# is what keeps the music WebSocket same-origin.
+if settings.static_dir:
+    _static = Path(settings.static_dir)
+    _index = _static / "index.html"
+
+    app.mount("/assets", StaticFiles(directory=_static / "assets"), name="static-assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    def spa(path: str) -> Response:
+        """Hashed build output is immutable; `index.html` never is.
+
+        An unmatched `/api/...` is a bug, not a deep link, so it 404s rather
+        than quietly handing the caller a page of HTML to parse as JSON.
+        """
+        if path.startswith("api/"):
+            raise AppError("network", f"unknown endpoint {path}", status_code=404)
+        candidate = _static / path
+        if path and candidate.is_file() and _static in candidate.resolve().parents:
+            return FileResponse(candidate, headers={"Cache-Control": "public, max-age=3600"})
+        return FileResponse(_index, headers={"Cache-Control": "no-cache"})

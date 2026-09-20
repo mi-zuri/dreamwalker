@@ -1,0 +1,82 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+# A new push makes the previous run pointless; stop paying for it.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Install
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Lint
+        working-directory: backend
+        run: |
+          uv run ruff check .
+          uv run ruff format --check .
+
+      # The suite never reaches the network: LLM_MODE is mocked and news
+      # ingest is off, both set in conftest.py. A test that starts costing
+      # money is a test that has broken.
+      - name: Test
+        working-directory: backend
+        run: uv run pytest -q
+
+  web:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - run: bun install --frozen-lockfile
+
+      - name: Typecheck and build
+        working-directory: web
+        run: bun run build
+
+  contract:
+    # There is no shared/ directory: the frontend's types are generated from
+    # the backend's OpenAPI schema. This is what stops the two drifting.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - run: bun install --frozen-lockfile
+
+      - name: Regenerate the frontend schema
+        run: |
+          cd backend && uv sync --frozen && cd ..
+          bun run gen:api:ci
+
+      - name: Fail if it changed
+        run: |
+          if ! git diff --exit-code -- web/src/api/schema.d.ts; then
+            echo "::error::schema.d.ts is stale - run 'bun run gen:api:ci' and commit the result"
+            exit 1
+          fi

@@ -21,6 +21,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/config": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Client Config
+         * @description What the frontend needs to know before it can render anything.
+         *
+         *     Serving this rather than baking it into the bundle is what lets one image
+         *     run locally and in deployment: the container has no build-time knowledge
+         *     of which project it belongs to.
+         */
+        get: operations["client_config_api_config_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/me": {
         parameters: {
             query?: never;
@@ -257,6 +281,12 @@ export interface components {
             /** Choice Id */
             choice_id: string;
         };
+        /** ClientConfig */
+        ClientConfig: {
+            /** Auth Mode */
+            auth_mode: string;
+            firebase: components["schemas"]["FirebaseConfig"] | null;
+        };
         /** Destination */
         Destination: {
             /** Key */
@@ -298,6 +328,24 @@ export interface components {
             style_labels?: components["schemas"]["StyleLabel"][];
             /** Sources */
             sources?: components["schemas"]["SourceLink"][];
+        };
+        /**
+         * FirebaseConfig
+         * @description The browser's Firebase project identifiers. Public by design.
+         */
+        FirebaseConfig: {
+            /** Api Key */
+            api_key: string;
+            /** Auth Domain */
+            auth_domain: string;
+            /** Project Id */
+            project_id: string;
+            /** App Id */
+            app_id: string;
+            /** Storage Bucket */
+            storage_bucket: string;
+            /** Messaging Sender Id */
+            messaging_sender_id: string;
         };
         /**
          * GameMap
@@ -622,6 +670,26 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["Health"];
+                };
+            };
+        };
+    };
+    client_config_api_config_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ClientConfig"];
                 };
             };
         };

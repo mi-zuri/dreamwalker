@@ -424,6 +424,85 @@ than deleted, because deleting an untracked `.env` is unrecoverable.
 
 ---
 
+## Phase 8 decisions
+
+**Two images per minute is permanent.** The project's
+`GenContentImageGenRequestsPerMinutePerProjectPerBaseModelGlobal` quota is fixed
+at 2 and will not be raised. Nothing above changes: the pacing already falls out
+of the token bucket, only the prologue image is on the critical path, and a
+location that never gets its picture renders without one. It is written down
+here as a constraint rather than a to-do so nobody designs against a larger
+number later.
+
+**One Cloud Run service serves the API *and* the frontend.** The obvious shape
+was Firebase Hosting in front of a Cloud Run backend - free CDN, free
+certificate, easy custom domain. It does not work here: **Hosting's rewrites do
+not carry a WebSocket upgrade**, and the music socket is not optional. Splitting
+the difference - Hosting for the page, a direct `run.app` origin for the socket -
+would mean two origins, CORS, and a token crossing between them. So the
+container holds the built frontend and FastAPI serves it, registered after every
+API route. Same origin, no CORS, one thing to deploy, and `/api/...` that misses
+returns a 404 rather than a page of HTML for the client to parse as JSON.
+
+**europe-west1, not europe-central2.** Warsaw is ~20ms closer to the player and
+is where the assets bucket already lives, and it was still the wrong choice.
+europe-west1 sits *inside* Firestore's `eur3` multi-region, so the several state
+reads on every move are in-region rather than across one; and it is one of the
+ten regions where Cloud Run can map a custom domain without a load balancer,
+which europe-central2 is not. A global load balancer costs about $18/month
+before it serves a byte - more than seven times the entire monthly budget.
+
+**The Firebase config is served, not compiled in.** `/api/config` hands the
+browser the project identifiers at boot. Those six values are public by design,
+so this is not about secrecy - it is that one built image now runs anywhere, a
+config change is a redeploy rather than a rebuild, and CI needs no secret to
+build the frontend. The real win is that `AUTH_MODE` on the backend became the
+only switch: in `dev` the backend sends no config and the browser uses its local
+stub, so the two halves can no longer disagree about whether this install has
+real accounts. That disagreement is exactly what opened a live Google sign-in
+popup during Phase 7 browser testing.
+
+**CPU stays allocated while an instance lives.** Cloud Run's default throttles
+CPU between requests, and this app does its real work *after* the response:
+scenes, the remaining images and photo matching all run behind the player.
+Throttling would stall precisely that. `cpu_idle = false` costs nothing extra
+while nobody is playing, because the instance still scales to zero.
+
+**One instance, maximum.** A generation job lives in memory between the POST
+that starts it and the SSE stream that watches it, so a request has to reach the
+instance that owns it. Cloud Run's session affinity is best-effort; one instance
+is not. It doubles as the ceiling on what a bad day can cost, and at
+concurrency 80 it is far more than an invite list will ever need.
+
+**No uptime check.** The plan asked for one. It is incompatible with the budget:
+polling a scale-to-zero service keeps an instance alive around the clock, which
+turns a free idle month into roughly $30. What replaced it is an alert on the
+thing that actually matters unattended - more than five ERROR logs in ten
+minutes, with `EVALUATION_MISSING_DATA_INACTIVE` so a quiet night is not an
+incident - plus the billing budget. Nobody is paged when the game is asleep,
+which is the correct behaviour for a game that is asleep.
+
+**No service-account key anywhere.** GitHub Actions authenticates by Workload
+Identity Federation, with the provider restricted to this one repository. A key
+file in a repo secret is a permanent credential in a place neither of us can
+rotate.
+
+**CI ships code; it does not change infrastructure.** The deploy workflow builds
+and rolls out a revision. It never runs Terraform. Who can reach the app, what
+the budget is and what the invite list contains stay deliberate acts from a
+workstation, with a plan to read first.
+
+**Terraform state is not in the assets bucket.** That bucket is world-readable so
+browsers can fetch generated images straight from it. State holds the invite
+list, so it gets its own private, versioned bucket.
+
+**Firestore rules deny everything.** The backend reaches Firestore through the
+Admin SDK, which bypasses rules entirely. The rules exist to stop anything else:
+the web SDK ships in the bundle with the project id in it, and without them a
+stranger could read every saved game from a browser console.
+
+---
+
 ## Still needed
 
 **The actual Lyria RealTime cost.** At a 10 PLN budget this is no longer a
@@ -436,17 +515,7 @@ with that key returned `429 RESOURCE_EXHAUSTED`, which suggests free-tier
 limits, and free-tier Lyria usage may cost nothing at all. That would explain
 "costs are fine" and would make live music essentially free.
 
-**A Vertex image-quota increase.** Two image generations per minute, project
-wide, is the default for a new project and it is the one number that would
-change the shape of the pipeline if it moved. Raising it is a request rather
-than a setting:
-
-    gcloud alpha services quota update \
-      --service=aiplatform.googleapis.com \
-      --consumer=projects/mi-zuri-dreamwalker-app \
-      --metric=aiplatform.googleapis.com/generate_content_image_gen_requests \
-      --unit=1/min/{project}/{base_model} --value=20
-
-It is worth filing, but the game is built to be correct without it: the pacing
-falls out of the token bucket, and a location that never gets its picture
-renders without one.
+**A custom domain.** `dreamwalker.zur-i.com` needs `zur-i.com` verified in
+Google Search Console before Cloud Run will map it - ownership of a domain is
+not something a deploy script can prove. The service works on its `run.app`
+URL until then; `infra/README.md` has the two commands.

@@ -37,3 +37,9 @@ CLAUDE.md
 
 # Local env
 web/.env.local
+
+# Terraform / OpenTofu
+infra/terraform/.terraform/
+infra/terraform/*.tfstate
+infra/terraform/*.tfstate.*
+infra/terraform/terraform.tfvars

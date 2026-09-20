@@ -2,9 +2,15 @@
  * Google sign-in.
  *
  * The browser holds the Firebase session; the backend only ever sees the ID
- * token, which it verifies itself. When no Firebase config is present - a
- * plain `bun run dev` with the backend in `AUTH_MODE=dev` - sign-in is a local
- * stub, so the whole app stays runnable without any cloud setup.
+ * token, which it verifies itself.
+ *
+ * The Firebase project config is fetched from the backend at boot rather than
+ * compiled in. Those six values are public - they name the project, they
+ * authorise nothing - but fetching them means the same built bundle runs
+ * locally and in deployment, and that `AUTH_MODE` on the backend is the only
+ * switch: with it set to `dev` the backend sends no config, and sign-in here
+ * becomes a local stub. The two halves cannot disagree about whether this
+ * install has real accounts.
  */
 
 import { initializeApp, type FirebaseApp } from 'firebase/app';
@@ -18,23 +24,53 @@ import {
   type User as FirebaseUser,
 } from 'firebase/auth';
 
-const config = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
-  appId: import.meta.env.VITE_FIREBASE_APP_ID,
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-};
+interface FirebaseConfig {
+  apiKey: string;
+  authDomain: string;
+  projectId: string;
+  appId: string;
+  storageBucket: string;
+  messagingSenderId: string;
+}
 
-export const firebaseEnabled = Boolean(config.apiKey && config.projectId);
+let config: FirebaseConfig | null = null;
+
+/**
+ * Awaited once, before the app renders. A backend that cannot be reached
+ * leaves `config` null, which lands the player on the login screen and then
+ * on the error screen - the honest outcome, and better than a blank page.
+ */
+export async function loadConfig(): Promise<void> {
+  try {
+    const res = await fetch('/api/config');
+    if (!res.ok) return;
+    const body = await res.json();
+    if (!body?.firebase) return;
+    const f = body.firebase;
+    config = {
+      apiKey: f.api_key,
+      authDomain: f.auth_domain,
+      projectId: f.project_id,
+      appId: f.app_id,
+      storageBucket: f.storage_bucket,
+      messagingSenderId: f.messaging_sender_id,
+    };
+  } catch {
+    // Offline, or the backend is down. Handled as dev mode; the first real
+    // API call will surface the failure properly.
+  }
+}
+
+export function firebaseEnabled(): boolean {
+  return config !== null;
+}
 
 let app: FirebaseApp | undefined;
 let auth: Auth | undefined;
 
 function client(): Auth {
   if (!auth) {
-    app = initializeApp(config);
+    app = initializeApp(config!);
     auth = getAuth(app);
   }
   return auth;
@@ -50,19 +86,19 @@ function toAccount(user: FirebaseUser): Account {
 }
 
 export async function signIn(): Promise<Account> {
-  if (!firebaseEnabled) return { name: 'Dev', email: 'dev@localhost' };
+  if (!firebaseEnabled()) return { name: 'Dev', email: 'dev@localhost' };
   const provider = new GoogleAuthProvider();
   const { user } = await signInWithPopup(client(), provider);
   return toAccount(user);
 }
 
 export async function signOut(): Promise<void> {
-  if (firebaseEnabled) await fbSignOut(client());
+  if (firebaseEnabled()) await fbSignOut(client());
 }
 
 /** Attached as a bearer token to every backend call. Null in dev mode. */
 export async function idToken(): Promise<string | null> {
-  if (!firebaseEnabled) return null;
+  if (!firebaseEnabled()) return null;
   return (await client().currentUser?.getIdToken()) ?? null;
 }
 
@@ -71,7 +107,7 @@ export async function idToken(): Promise<string | null> {
  * a refresh does not bounce the player back to the login screen.
  */
 export function restore(): Promise<Account | null> {
-  if (!firebaseEnabled) return Promise.resolve(null);
+  if (!firebaseEnabled()) return Promise.resolve(null);
   return new Promise((resolve) => {
     const stop = onAuthStateChanged(client(), (user) => {
       stop();

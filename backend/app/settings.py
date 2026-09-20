@@ -52,6 +52,17 @@ class Settings(BaseSettings):
     # "dev" treats every caller as one local user; deployment uses "firebase".
     auth_mode: Literal["dev", "firebase"] = "dev"
 
+    # The browser's half of Firebase, served from `/api/config` rather than
+    # baked in at build time. These six values are public by design - they
+    # name the project, they authorise nothing - but keeping them out of the
+    # image means one build runs anywhere and a config change is a redeploy
+    # rather than a rebuild.
+    firebase_api_key: str = ""
+    firebase_auth_domain: str = ""
+    firebase_app_id: str = ""
+    firebase_storage_bucket: str = ""
+    firebase_messaging_sender_id: str = ""
+
     # Launch is invite-only, which is the strongest cost control we have.
     invite_only: bool = False
     allowed_emails: list[str] = []
@@ -81,6 +92,12 @@ class Settings(BaseSettings):
     monthly_budget_usd: float = 2.40
 
     log_level: str = "INFO"
+
+    # Set in the container to the built frontend, which makes one Cloud Run
+    # service the whole product. Firebase Hosting would have been the obvious
+    # front door, but its rewrites do not carry a WebSocket upgrade, and the
+    # music socket is not optional. Empty locally, where Vite serves the app.
+    static_dir: str = ""
 
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:5174"]
 

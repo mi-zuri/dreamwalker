@@ -87,8 +87,10 @@ def check_text() -> bool:
             u = r.usage_metadata
             cost = (u.prompt_token_count * TEXT_IN + u.candidates_token_count * TEXT_OUT) / 1e6
             print(f"[{OK}] text {model}")
-            print(f"        {u.prompt_token_count} in / {u.candidates_token_count} out"
-                  f" | {dt:.2f}s | ${cost:.6f}")
+            print(
+                f"        {u.prompt_token_count} in / {u.candidates_token_count} out"
+                f" | {dt:.2f}s | ${cost:.6f}"
+            )
             print(f"        json: {r.text.strip()[:90]}")
             if model != TEXT_MODEL:
                 print(f"        NOTE: {TEXT_MODEL} unavailable; plan's fallback is in use.")
@@ -151,7 +153,7 @@ async def check_music(seconds: int = 20) -> bool:
             async def drain() -> None:
                 nonlocal total
                 async for msg in session.receive():
-                    for chunk in (msg.server_content.audio_chunks or []):
+                    for chunk in msg.server_content.audio_chunks or []:
                         total += len(chunk.data)
 
             try:
@@ -163,8 +165,10 @@ async def check_music(seconds: int = 20) -> bool:
         print(f"[{OK}] music {MUSIC_MODEL}")
         print(f"        {total / 1024:.0f}KB = {audio_s:.1f}s audio in {wall:.1f}s wall")
         print(f"        a 10-min game streams ~{600 * 48000 * 2 * 2 / 1e6:.0f}MB")
-        print("        COST: unpublished. Read actual spend for this run in the "
-              "AI Studio / GCP billing console, then fill it into the plan's cost model.")
+        print(
+            "        COST: unpublished. Read actual spend for this run in the "
+            "AI Studio / GCP billing console, then fill it into the plan's cost model."
+        )
         return True
     except Exception as e:  # noqa: BLE001
         print(f"[{FAIL}] music {MUSIC_MODEL}: {type(e).__name__}: {str(e)[:160]}")

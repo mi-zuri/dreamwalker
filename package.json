@@ -3,13 +3,16 @@
   "version": "1.0.0",
   "private": true,
   "packageManager": "bun@1.3.13",
-  "workspaces": ["web"],
+  "workspaces": [
+    "web"
+  ],
   "scripts": {
     "dev": "(cd backend && uv run uvicorn app.main:app --reload --port 8000) & (cd web && bun run dev) & wait",
     "dev:web": "cd web && bun run dev",
     "dev:backend": "cd backend && uv run uvicorn app.main:app --reload --port 8000",
     "build": "cd web && bun run build",
     "test": "cd backend && uv run pytest",
-    "gen:api": "cd web && bun run gen:api"
+    "gen:api": "cd web && bun run gen:api",
+    "gen:api:ci": "cd backend && uv run python scripts/dump_openapi.py > /tmp/dreamwalker-openapi.json && cd ../web && bunx openapi-typescript /tmp/dreamwalker-openapi.json -o src/api/schema.d.ts"
   }
 }

@@ -35,7 +35,7 @@ Every run is saved and can be replayed.
 
 - **web/** — React 19, Vite 7, TypeScript, Tailwind 4, Zustand (run with Bun)
 - **backend/** — FastAPI, Pydantic v2, uv-managed, Python 3.12+
-- **infra/** — Dockerfiles, Cloud Run, Terraform *(Phase 8)*
+- **infra/** — one Docker image, Cloud Run, Terraform
 - **AI** — Gemini on Vertex AI for text and images; Lyria RealTime, which is
   Gemini-API-only, for music
 
@@ -65,3 +65,4 @@ real Google Cloud project.
 | [docs/decisions.md](docs/decisions.md) | Every design decision, with the measurements behind it |
 | [docs/safety.md](docs/safety.md) | What news mode refuses, and how the rest is handled |
 | [docs/style-cards.md](docs/style-cards.md) | The style catalog, generated from the code |
+| [infra/README.md](infra/README.md) | Deploying it, and what is deliberately not deployed |
