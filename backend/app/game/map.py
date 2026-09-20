@@ -20,7 +20,14 @@ STEPS = ((0, -1), (0, 1), (-1, 0), (1, 0))
 
 
 def tile_at(game_map: GameMap, pos: Pos) -> str:
+    """Anything outside the grid - or off the end of a ragged row - is a wall.
+
+    Declared `width`/`height` are not trusted to match `tiles`, because this
+    also runs over unvalidated, freshly generated grids.
+    """
     if not (0 <= pos.y < game_map.height and 0 <= pos.x < game_map.width):
+        return WALL
+    if pos.y >= len(game_map.tiles):
         return WALL
     row = game_map.tiles[pos.y]
     return row[pos.x] if pos.x < len(row) else WALL

@@ -21,6 +21,10 @@ class Settings(BaseSettings):
     llm_mode: Literal["live", "mock"] = "mock"
     # Scales the faked loading-stage delays; tests set it to 0.
     mock_stage_scale: float = 1.0
+    # Mock games replay the fixture's recorded grid by default. "generated"
+    # swaps in a freshly generated floor plan for the same locations, which is
+    # how the Phase 3 map generator gets walked in a browser.
+    mock_map_source: Literal["fixture", "generated"] = "fixture"
 
     # "dev" treats every caller as one local user; deployment uses "firebase".
     auth_mode: Literal["dev", "firebase"] = "dev"

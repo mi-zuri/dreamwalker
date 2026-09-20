@@ -183,6 +183,57 @@ implementation of the game that could drift.
 
 ---
 
+## Phase 3 decisions
+
+**The map is generated procedurally, not by a model.** This is a deliberate
+departure from the plan, which had the grid come out of the generator prompt
+with the validator re-prompting it on failure. Cost was not the reason - a
+53x27 grid is about 500 output tokens, well under 2% of a game. The reasons
+are that a model call in the `map` stage adds seconds to the "first scene
+under 8s" budget; that models are unreliable at grid invariants (equal row
+lengths, exactly one `@`, connectivity), so the repair loop would fire
+constantly and the repaired result would be procedural anyway; and above all
+that the arrangement of rooms carries no meaning. What *does* carry meaning -
+which locations exist, what they are called, how many there are, and which one
+is locked behind which - is decided by the story and passed in as arguments.
+
+`world_map.build_map` therefore keeps the plan's bounded loop with the
+generator swapped out: generate, validate, retry twice on a new seed, then
+deterministic repair. The validator never learned anything about how the map
+was made, so a model-authored grid could be dropped in later without touching
+it.
+
+**Locked rooms are leaves of the spanning tree.** A leaf cell has exactly one
+corridor, so putting the door on that corridor is the only way in *by
+construction* rather than by inspection. Extra loop corridors are never carved
+next to a locked room, and every corridor is confined to the two lattice cells
+it joins, so one room's corridor can never cut through another room and quietly
+bypass its lock. The validator checks this anyway, via `door_decorative`.
+
+**Issues are blocking or cosmetic.** A door that gates nothing makes a map
+sloppy, not unplayable, so it is reported and tolerated - `build_map` retries
+past it but will ship it rather than mangle a working map to avoid it. Only
+blocking issues trigger repair.
+
+**Repair prefers carving to giving up.** An unreachable room gets a corridor
+tunnelled to the nearest reachable tile; a key locked behind its own door has
+that door removed. Both always succeed, so a bad layout can cost the map some
+of its shape but can never reach the player as an error. The one case repair
+refuses is a grid too small to hold a game, which the caller answers by
+generating a fresh one.
+
+**The walking budget is a real limit, not a formality.** `MAX_PATH` is 120
+tiles and the whole tour is capped at 90 seconds of walking at the client's
+90ms per step. Generated maps come in around 10-20 seconds of walking, so the
+caps exist to catch a pathological layout rather than to shape a normal one.
+
+**`MOCK_MAP_SOURCE=generated`** swaps the recorded grid of a mock game for a
+freshly generated one while keeping its locations, locks and story. It is how
+the generator gets walked in a browser without spending anything, and it is the
+seam Phase 4 replaces with a real story-driven map request.
+
+---
+
 ## Still needed
 
 **The actual Lyria RealTime cost.** At a 10 PLN budget this is no longer a

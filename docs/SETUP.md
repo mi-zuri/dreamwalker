@@ -259,6 +259,11 @@ MUSIC_MODE=realtime
 until Phase 4 — the pipeline runs on recorded fixtures and spends nothing.
 `backend/.env` is gitignored.
 
+Optional, and still free: add `MOCK_MAP_SOURCE=generated` to play a mock game
+on a freshly generated floor plan instead of the grid the fixture recorded.
+The locations, the locks and the story stay the same; only the map changes,
+and it changes with every new game.
+
 Check the key landed exactly once:
 
 ```bash

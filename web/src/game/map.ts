@@ -7,7 +7,9 @@ export const START = '@';
 
 export function tileAt(map: GameMap, { x, y }: Pos): string {
   if (y < 0 || y >= map.height || x < 0 || x >= map.width) return WALL;
-  return map.tiles[y][x] ?? WALL;
+  // `width`/`height` are not trusted to match `tiles`: a ragged or short grid
+  // reads as wall rather than throwing.
+  return map.tiles[y]?.[x] ?? WALL;
 }
 
 export function destinationAt(map: GameMap, pos: Pos): Destination | undefined {
