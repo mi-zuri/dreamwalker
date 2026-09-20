@@ -7,6 +7,7 @@ out as a loop rather than as silence.
 """
 
 import asyncio
+import contextlib
 import json
 import struct
 
@@ -152,7 +153,11 @@ class FakeSocket:
     def __init__(self, inbound: list[str] | None = None) -> None:
         self.sent: list[bytes] = []
         self.said: list[dict] = []
+        self.closed = False
         self._inbound = list(inbound or [])
+
+    async def close(self) -> None:
+        self.closed = True
 
     async def send_bytes(self, data: bytes) -> None:
         self.sent.append(data)
@@ -275,3 +280,63 @@ async def test_the_daily_music_cap_is_per_player_and_per_day():
     await store.add_music_minutes("u1", settings.music_daily_minutes + 1)
     assert not await session_module.allowed_minutes(store, "u1")
     assert await session_module.allowed_minutes(store, "u2"), "one player's use is their own"
+
+
+async def test_a_second_session_for_one_game_replaces_the_first(monkeypatch):
+    """A reconnect must not leave a second Lyria session running and billed."""
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "music_mode", "loops")
+
+    async def fake_capture(prompt, bpm, seconds):
+        return b"\x00\x01" * int(BYTES_PER_SECOND * seconds // 2)
+
+    monkeypatch.setattr(loops, "capture", fake_capture)
+
+    first_ws, second_ws = FakeSocket(), FakeSocket()
+    first, second = make_session(first_ws), make_session(second_ws)
+
+    task = asyncio.create_task(first.run())
+    for _ in range(200):
+        if first_ws.said:
+            break
+        await asyncio.sleep(0.01)
+    assert session_module._live[first.state.game_id] is first
+
+    second_task = asyncio.create_task(second.run())
+    for _ in range(200):
+        if second_ws.said:
+            break
+        await asyncio.sleep(0.01)
+
+    assert session_module._live[first.state.game_id] is second
+    assert first._stopped, "the earlier session was told to stand down"
+    assert first_ws.closed, "and its socket was closed rather than left open"
+
+    for pending in (task, second_task):
+        pending.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await pending
+    session_module._live.clear()
+
+
+async def test_a_closed_socket_ends_the_session_rather_than_raising(monkeypatch):
+    """Starlette raises a plain RuntimeError once a close has been sent."""
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "music_mode", "loops")
+
+    async def fake_capture(prompt, bpm, seconds):
+        return b"\x00\x01" * int(BYTES_PER_SECOND * seconds // 2)
+
+    monkeypatch.setattr(loops, "capture", fake_capture)
+
+    class Closed(FakeSocket):
+        async def receive_text(self) -> str:
+            raise RuntimeError('Cannot call "receive" once a close message has been sent.')
+
+    ws = Closed()
+    session = make_session(ws)
+    await asyncio.wait_for(session.run(), timeout=5)
+    assert ws.said[-1]["mode"] == "loops"
+    session_module._live.clear()

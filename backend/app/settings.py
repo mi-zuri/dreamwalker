@@ -80,6 +80,8 @@ class Settings(BaseSettings):
     # Hard monthly spend cap, in USD, checked before every generation.
     monthly_budget_usd: float = 2.40
 
+    log_level: str = "INFO"
+
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:5174"]
 
 

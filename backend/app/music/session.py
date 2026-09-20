@@ -40,8 +40,14 @@ log = logging.getLogger(__name__)
 #: Cloud Run bills a WebSocket for as long as it is open, so it does not stay
 #: open past the longest game anyone should be playing.
 MAX_SESSION_SECONDS = 12 * 60
-#: How long to wait for Lyria's first bytes before giving up on it.
-FIRST_CHUNK_TIMEOUT = 20.0
+#: Raised by Starlette when the socket has already closed under us. It is a
+#: plain `RuntimeError`, so it has to be caught alongside the disconnect.
+CLOSED = (WebSocketDisconnect, RuntimeError)
+
+#: One session per game. A reconnect - or React's double-mounted effect in
+#: development - would otherwise leave a second Lyria session running and
+#: being paid for with nobody listening to it.
+_live: dict[str, "MusicSession"] = {}
 
 
 def _location(script: GameScript, location_id: str | None) -> PlannedLocation | None:
@@ -70,16 +76,36 @@ class MusicSession:
         self.style = state.style_card
         self._where: str | None = state.current_scene.location_id
         self._seconds = 0.0
+        self._stopped = False
 
     async def run(self) -> None:
-        if settings.music_mode == "loops":
-            await self._serve_loop("configured for loops")
-            return
+        await self._take_over()
         try:
-            await self._serve_live()
-        except MusicUnavailable as exc:
-            log.info("live music unavailable for %s: %s", self.state.game_id, exc)
-            await self._serve_loop(str(exc))
+            if settings.music_mode == "loops":
+                await self._serve_loop("configured for loops")
+                return
+            try:
+                await self._serve_live()
+            except MusicUnavailable as exc:
+                log.info("live music unavailable for %s: %s", self.state.game_id, exc)
+                await self._serve_loop(str(exc))
+        finally:
+            if _live.get(self.state.game_id) is self:
+                del _live[self.state.game_id]
+
+    async def _take_over(self) -> None:
+        """Become this game's only music session, closing whoever held it."""
+        previous = _live.get(self.state.game_id)
+        self._stopped = False
+        _live[self.state.game_id] = self
+        if previous is not None and previous is not self:
+            log.info("replacing an earlier music session for %s", self.state.game_id)
+            await previous.stop()
+
+    async def stop(self) -> None:
+        self._stopped = True
+        with contextlib.suppress(*CLOSED):
+            await self.ws.close()
 
     # ── live ────────────────────────────────────────────────────────────
 
@@ -97,6 +123,8 @@ class MusicSession:
         try:
             async with asyncio.timeout(MAX_SESSION_SECONDS):
                 async for data in stream.chunks():
+                    if self._stopped:
+                        break
                     if first:
                         first = False
                         log.info("music started for %s", self.state.game_id)
@@ -105,7 +133,8 @@ class MusicSession:
         except TimeoutError:
             log.info("music session for %s hit the 12 minute cap", self.state.game_id)
             await self._say({"mode": "off", "reason": "session_limit"})
-        except WebSocketDisconnect:
+        except CLOSED:
+            # The player navigated away, or another session took over.
             pass
         finally:
             listener.cancel()
@@ -114,7 +143,7 @@ class MusicSession:
             await stream.close()
             await self._meter(time.monotonic() - started)
 
-        if first:
+        if first and not self._stopped:
             # Connected, but never produced a note.
             raise MusicUnavailable("no audio arrived")
 
@@ -123,7 +152,7 @@ class MusicSession:
         while True:
             try:
                 raw = await self.ws.receive_text()
-            except (WebSocketDisconnect, RuntimeError):
+            except CLOSED:
                 return
             try:
                 where = json.loads(raw).get("location")
@@ -156,14 +185,14 @@ class MusicSession:
         await self._say({"mode": "loops", "url": url, "reason": reason})
         # Stay open so the client can keep telling us where it is, and so a
         # close is a real close rather than a dropped connection.
-        with contextlib.suppress(WebSocketDisconnect, RuntimeError):
-            while True:
+        with contextlib.suppress(*CLOSED):
+            while not self._stopped:
                 await self.ws.receive_text()
 
     # ── plumbing ────────────────────────────────────────────────────────
 
     async def _say(self, payload: dict) -> None:
-        with contextlib.suppress(WebSocketDisconnect, RuntimeError):
+        with contextlib.suppress(*CLOSED):
             await self.ws.send_text(json.dumps(payload))
 
     async def _meter(self, wall_seconds: float) -> None:

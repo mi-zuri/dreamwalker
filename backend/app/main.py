@@ -18,6 +18,7 @@ from sse_starlette.sse import EventSourceResponse
 from app.auth import CurrentUser, verify_ws
 from app.errors import AppError, ErrorKind, app_error_handler
 from app.game.map import destination_at
+from app.logging_setup import configure as configure_logging
 from app.media import PALETTES, placeholder_svg
 from app.models.game import (
     AnswerRequest,
@@ -40,6 +41,7 @@ from app.storage import get_store
 from app.storage.assets import get_assets
 from app.storage.base import GameStore
 
+configure_logging()
 log = logging.getLogger(__name__)
 
 app = FastAPI(title="Dreamwalker API", version="0.1.0")
