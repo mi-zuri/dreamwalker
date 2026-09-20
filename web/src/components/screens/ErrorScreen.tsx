@@ -13,7 +13,10 @@ export function ErrorScreen() {
         <p className="text-sm text-gray-300">
           {error ? t(uiLanguage, ERROR_KEYS[error.kind]) : ''}
         </p>
-        {error?.detail && (
+        {/* `detail` is a diagnostic, not a message: it carries exception
+            text, dollar amounts and endpoint names. Useful while developing,
+            nothing a player should be handed. */}
+        {import.meta.env.DEV && error?.detail && (
           <p className="text-xs text-gray-600 mt-2 break-all">{error.detail}</p>
         )}
         <button

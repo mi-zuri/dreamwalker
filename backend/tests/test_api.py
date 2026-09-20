@@ -159,6 +159,32 @@ def test_forced_error_surfaces_the_kind(client):
     assert client.post("/api/games", json=NEW_GAME).status_code == 200
 
 
+def test_an_unexpected_failure_still_answers_in_the_error_contract():
+    """A bug must reach the error screen as an error, not as a blank page.
+
+    FastAPI's own 500 body carries no `kind`, so the client would fall back to
+    "cannot reach the server" for a server that answered perfectly well.
+    """
+    from fastapi.testclient import TestClient
+
+    from app.main import app
+    from app.storage.memory import MemoryStore
+
+    def explode(self, uid):
+        raise RuntimeError("something nobody wrote a handler for")
+
+    original = MemoryStore.list_saved
+    MemoryStore.list_saved = explode
+    try:
+        with TestClient(app, raise_server_exceptions=False) as raw:
+            res = raw.get("/api/games")
+    finally:
+        MemoryStore.list_saved = original
+
+    assert res.status_code == 500
+    assert res.json() == {"kind": "generation_failed", "detail": "RuntimeError"}
+
+
 def test_placeholder_image_is_deterministic_svg(client):
     a = client.get("/api/media/placeholder/moss/harbour.svg")
     b = client.get("/api/media/placeholder/moss/harbour.svg")

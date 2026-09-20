@@ -78,10 +78,10 @@ const STRINGS = {
     errNetwork: 'cannot reach the server.',
     errGeneration: 'the story fell apart while being written.',
     errPoolEmpty: 'no fresh events left for you right now. come back later.',
-    errBudget: 'daily limit reached. come back tomorrow.',
+    errBudget: "this month's budget is spent. come back next month.",
     errBlocked: 'that event is not one we can turn into a game.',
     errAuth: 'sign-in failed.',
-    retry: '[RETRY]',
+    retry: '[BACK TO THE MENU]',
   },
   pl: {
     tagline: 'przeżyj historię, która jeszcze nie ostygła',
@@ -156,10 +156,10 @@ const STRINGS = {
     errNetwork: 'nie mogę połączyć się z serwerem.',
     errGeneration: 'historia rozsypała się przy pisaniu.',
     errPoolEmpty: 'brak nowych wydarzeń dla ciebie. wróć później.',
-    errBudget: 'dzienny limit wyczerpany. wróć jutro.',
+    errBudget: 'budżet na ten miesiąc się skończył. wróć w przyszłym.',
     errBlocked: 'z tego wydarzenia nie zrobimy gry.',
     errAuth: 'logowanie nie powiodło się.',
-    retry: '[PONÓW]',
+    retry: '[WRÓĆ DO MENU]',
   },
 } as const;
 

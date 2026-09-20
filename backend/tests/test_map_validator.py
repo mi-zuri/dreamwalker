@@ -292,3 +292,114 @@ def test_a_budget_no_layout_could_meet_is_refused():
     # `B` is 16 tiles away in a straight line; no amount of carving beats that.
     with pytest.raises(MapRepairError):
         repair_map(make_map(BASE, [DOOR_C]), max_path=8)
+
+
+# ── The edges: grids a generator produces rarely, and repairs must survive ──
+
+
+def test_a_map_with_no_destinations_is_not_a_game():
+    assert "no_destinations" in codes(make_map(BASE, destinations=[]))
+
+
+def test_a_declared_size_the_rows_do_not_match_is_caught():
+    assert "bad_dimensions" in codes(make_map(BASE, height=11))
+
+
+def test_two_doors_claiming_one_tile_is_reported_once():
+    doubled = make_map(BASE, [DOOR_C, DOOR_C.model_copy()])
+    assert "door_duplicated" in codes(doubled)
+
+
+def test_a_valid_map_has_nothing_to_diagnose():
+    report = validate_map(make_map(BASE, [DOOR_C]))
+    assert report.ok
+    assert report.blocking_issues == []
+    assert report.as_diagnostics() == "map is valid"
+
+
+def test_a_door_record_pointing_at_floor_gates_nothing():
+    """`gated_destinations` answers by walling the tile off, so a record that
+    does not point at a door has no question to answer."""
+    from app.pipeline.map_validator import gated_destinations
+
+    nowhere = Door(key="+", pos=Pos(x=3, y=5), unlock_from="A")
+    assert gated_destinations(make_map(BASE, [DOOR_C]), nowhere) == []
+
+
+def test_two_destinations_sharing_a_key_are_given_separate_ones():
+    clashing = [
+        Destination(key="A", location_id="loc-a", name="Yard"),
+        Destination(key="A", location_id="loc-b", name="Shed"),
+    ]
+    repaired, log = repair_map(make_map(BASE, destinations=clashing))
+
+    keys = [d.key for d in repaired.destinations]
+    assert len(set(keys)) == 2, keys
+    assert any("already taken" in line for line in log)
+    assert validate_map(repaired).ok
+
+
+def test_a_grid_shorter_than_it_claims_gains_the_missing_rows():
+    repaired, log = repair_map(make_map(BASE, height=11))
+
+    assert len(repaired.tiles) == repaired.height
+    assert any("squared off" in line for line in log)
+    assert validate_map(repaired).ok
+
+
+def test_a_destination_with_nowhere_to_stand_has_a_tile_carved_for_it():
+    """The start walled in on every side: the repair has to make room."""
+    boxed = [
+        "#################",
+        "################",  # ragged on purpose, so squaring runs too
+        "#@##############",
+        "#################",
+        "#################",
+        "#################",
+        "#################",
+        "#################",
+        "#################",
+    ]
+    repaired, _ = repair_map(make_map(boxed))
+
+    assert validate_map(repaired).ok
+    assert len({d.key for d in repaired.destinations}) == len(DESTS)
+
+
+def test_a_door_off_the_grid_is_dropped():
+    stray = Door(key="+", pos=Pos(x=99, y=99), unlock_from="A")
+    repaired, log = repair_map(make_map(BASE, [DOOR_C, stray]))
+
+    assert any("off the grid" in line for line in log)
+    assert len(repaired.doors) == 1
+    assert validate_map(repaired).ok
+
+
+def test_the_second_door_on_a_tile_is_dropped_by_the_repair():
+    repaired, log = repair_map(make_map(BASE, [DOOR_C, DOOR_C.model_copy()]))
+
+    assert any("second door on the same tile" in line for line in log)
+    assert len(repaired.doors) == 1
+
+
+def test_a_door_sitting_on_a_destination_is_dropped():
+    on_top = Door(key="+", pos=Pos(x=3, y=6), unlock_from="B")  # the 'A' tile
+    repaired, log = repair_map(make_map(BASE, [on_top]))
+
+    assert any("it sits on 'A'" in line for line in log)
+    assert repaired.doors == []
+    assert validate_map(repaired).ok
+
+
+def test_two_destinations_declaring_one_key_is_ambiguous():
+    clashing = [
+        Destination(key="A", location_id="loc-a", name="Yard"),
+        Destination(key="A", location_id="loc-b", name="Shed"),
+    ]
+    assert "destination_key_invalid" in codes(make_map(BASE, destinations=clashing))
+
+
+def test_a_hole_in_a_side_wall_is_caught_too():
+    """Top and bottom edges are walked separately from the sides."""
+    leaking = swap(BASE, 0, 4, ".")
+    assert "no_border" in codes(make_map(leaking, [DOOR_C]))

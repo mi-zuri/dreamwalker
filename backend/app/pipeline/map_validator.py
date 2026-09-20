@@ -564,7 +564,15 @@ def _normalise(game_map: GameMap, remap: dict[str, str], log: list[str]) -> list
     width = max([game_map.width, *(len(r) for r in rows)]) if rows else game_map.width
     height = max(game_map.height, len(rows))
 
-    if width != game_map.width or height != game_map.height or any(len(r) != width for r in rows):
+    # `len(rows) != height` belongs here as much as the rest: a grid that
+    # declares nine rows and ships seven is padded below, and the repair log
+    # is the only record of what was changed.
+    if (
+        width != game_map.width
+        or height != game_map.height
+        or len(rows) != height
+        or any(len(r) != width for r in rows)
+    ):
         log.append(f"grid squared off to {width}x{height}")
 
     grid = [[remap.get(c, c) for c in row.ljust(width, WALL)] for row in rows]
@@ -728,7 +736,12 @@ def _repair_doors(
 
         if reason:
             on_grid = 0 <= door.pos.y < height and 0 <= door.pos.x < width
-            if on_grid and grid[door.pos.y][door.pos.x] == DOOR:
+            # A tile an earlier door already claimed is not this one's to
+            # erase. Dropping the duplicate used to take the lock with it,
+            # which left the kept record pointing at floor and made the
+            # repair - the thing that is supposed to always succeed - throw.
+            owned = spot in claimed
+            if on_grid and not owned and grid[door.pos.y][door.pos.x] == DOOR:
                 grid[door.pos.y][door.pos.x] = FLOOR
             log.append(f"dropped door at ({door.pos.x},{door.pos.y}): {reason}")
             continue

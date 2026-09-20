@@ -9,6 +9,16 @@ and then threaded into every downstream stage. Two constraints shape the draw:
   axis values with any of *this* player's last few games. There is deliberately
   no global check: two strangers drawing the same card is not a problem, and
   making it one would mean every player's variety depended on everyone else's.
+
+The draw avoids what the player has recently seen *per axis* rather than
+drawing uniformly and rejecting collisions afterwards, and that is not a
+refinement - it is the only way the rule holds. Measured: seven axes over
+pools of three to eight values mean two uniform cards share two or more axes
+**40%** of the time, so a draw acceptable against five recent cards comes up
+only 8% of the time, and rejection sampling fell through to its escape hatch
+on nearly half of all draws. Drawing from the values a player has not seen
+lately makes most axes collision-free by construction and leaves rejection to
+handle the few axes too small to be fresh.
 """
 
 from random import Random
@@ -29,34 +39,62 @@ HISTORY_DEPTH = 5
 #: A draw sharing this many axis values with a recent card is rejected.
 MAX_SHARED_AXES = 2
 #: Give up and take the last draw rather than loop forever on a small pool.
-MAX_RESAMPLES = 10
+#: Forty rather than ten because safe mode shrinks every pool at once, which
+#: pushes the per-draw collision rate to about 0.7; ten tries left three runs
+#: in a hundred repeating, and this is a few hundred microseconds of pure
+#: arithmetic with no I/O behind it.
+MAX_RESAMPLES = 40
 
 
-def _pool(axis: Axis, safety_class: SafetyClass) -> tuple[Value, ...]:
+def pool_for(
+    axis: Axis,
+    safety_class: SafetyClass = "allowed",
+    allowed_roles: set[str] | None = None,
+) -> tuple[Value, ...]:
+    """Every value this axis is allowed to take, under both gates.
+
+    A role gate that admits nothing is ignored rather than honoured: News mode
+    supplies roles a model chose for the event, and an empty intersection is a
+    scoring mistake, not an instruction to ship a game with no protagonist.
+    """
     values = CATALOG[axis]
-    if safety_class != "safe_mode":
-        return values
-    values = tuple(v for v in values if v.safe)
-    if axis == "protagonist_role":
-        values = tuple(v for v in values if v.id in SAFE_ROLES)
+    if safety_class == "safe_mode":
+        values = tuple(v for v in values if v.safe)
+        if axis == "protagonist_role":
+            values = tuple(v for v in values if v.id in SAFE_ROLES)
+    if axis == "protagonist_role" and allowed_roles:
+        values = tuple(v for v in values if v.id in allowed_roles) or values
     return values
 
 
 def default_card(safety_class: SafetyClass) -> StyleCard:
-    """The first legal value on every axis - a card that is always allowed.
-
-    Used when resampling keeps colliding with the player's history, which is
-    what happens once a pool is small enough that repetition is unavoidable.
-    """
-    return StyleCard(**{axis: _pool(axis, safety_class)[0].id for axis in AXES})
+    """The first legal value on every axis - a card that is always allowed."""
+    return StyleCard(**{axis: pool_for(axis, safety_class)[0].id for axis in AXES})
 
 
 def _shared(card: StyleCard, other: StyleCard) -> int:
     return sum(1 for axis in AXES if getattr(card, axis) == getattr(other, axis))
 
 
-def _draw(rng: Random, safety_class: SafetyClass) -> StyleCard:
-    return StyleCard(**{axis: rng.choice(_pool(axis, safety_class)).id for axis in AXES})
+def _draw(
+    rng: Random,
+    safety_class: SafetyClass,
+    history: list[StyleCard],
+    allowed_roles: set[str] | None,
+) -> StyleCard:
+    """One value per axis, preferring what this player has not seen lately.
+
+    An axis whose whole pool is in the history - `pacing` has three values and
+    the history holds five cards - falls back to the full pool, because the
+    alternative is refusing to deal a card at all.
+    """
+    values = {}
+    for axis in AXES:
+        pool = pool_for(axis, safety_class, allowed_roles)
+        seen = {getattr(card, axis) for card in history}
+        fresh = tuple(v for v in pool if v.id not in seen)
+        values[axis] = rng.choice(fresh or pool).id
+    return StyleCard(**values)
 
 
 def sample_style_card(
@@ -74,24 +112,16 @@ def sample_style_card(
     rng = rng or Random()
     history = (recent or [])[:HISTORY_DEPTH]
 
-    card = _draw(rng, safety_class)
+    card = _draw(rng, safety_class, history, allowed_roles)
     for _ in range(MAX_RESAMPLES):
-        if allowed_roles and card.protagonist_role not in allowed_roles:
-            legal = [v.id for v in _pool("protagonist_role", safety_class) if v.id in allowed_roles]
-            if legal:
-                card = card.model_copy(update={"protagonist_role": rng.choice(legal)})
         if all(_shared(card, old) < MAX_SHARED_AXES for old in history):
             return card
-        card = _draw(rng, safety_class)
+        card = _draw(rng, safety_class, history, allowed_roles)
 
-    # Every draw collided. Repetition is now unavoidable, so take the last one
-    # rather than serving the same fallback card to a player over and over.
-    if allowed_roles and card.protagonist_role not in allowed_roles:
-        legal = [v.id for v in _pool("protagonist_role", safety_class) if v.id in allowed_roles]
-        if legal:
-            card = card.model_copy(update={"protagonist_role": legal[0]})
-        else:
-            return default_card(safety_class)
+    # Every draw collided, which means the pools left after both gates are
+    # too small to avoid it. The last draw is still as fresh as the catalog
+    # allows on every axis, so it beats serving one fixed fallback card to a
+    # player over and over.
     return card
 
 

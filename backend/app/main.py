@@ -19,7 +19,7 @@ from pydantic import BaseModel
 from sse_starlette.sse import EventSourceResponse
 
 from app.auth import CurrentUser, verify_ws
-from app.errors import AppError, ErrorKind, app_error_handler
+from app.errors import AppError, ErrorKind, app_error_handler, unhandled_error_handler
 from app.game.map import destination_at
 from app.logging_setup import configure as configure_logging
 from app.media import PALETTES, placeholder_svg
@@ -49,6 +49,9 @@ log = logging.getLogger(__name__)
 
 app = FastAPI(title="Dreamwalker API", version="0.1.0")
 app.add_exception_handler(AppError, app_error_handler)
+# Registered after it, so `AppError` still wins its own handler. Everything
+# else becomes a logged 500 that the error screen can actually render.
+app.add_exception_handler(Exception, unhandled_error_handler)
 
 app.add_middleware(
     CORSMiddleware,

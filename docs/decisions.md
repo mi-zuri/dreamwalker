@@ -503,6 +503,91 @@ stranger could read every saved game from a browser console.
 
 ---
 
+## Phase 9 decisions
+
+**Evals are a separate thing from tests, in a separate directory.** `tests/`
+asserts invariants: one failure is a red build. `evals/` measures things that
+are allowed to be imperfect and reports a rate against a threshold. The
+distinction pays for itself in exactly one place — a style sampler that
+returned the same genre nineteen times in twenty would pass every assertion
+anyone would write about its type, its range and its safety gate, and would
+still make every game read alike. What catches that is a number.
+
+**The style sampler was rewritten because the eval said so.** This is the
+finding that justified the phase. Seven axes over pools of three to eight
+values mean two uniform cards share two or more axis values **40%** of the
+time; a draw acceptable against a five-card history therefore comes up only
+**8%** of the time; and ten rejection-sampling attempts all collided on
+**45%** of draws, falling through to the escape hatch. The anti-repetition
+rule the design advertises was not being delivered on nearly half of all
+games, and nothing in the test suite could have noticed, because every
+individual draw was type-correct and inside its safety gate.
+
+The fix is to draw per axis from the values the player has *not* seen lately,
+rather than drawing uniformly and rejecting collisions afterwards. Most axes
+then become collision-free by construction and rejection only has to handle
+the axes too small to be fresh. Measured violations: 45% → 0% in normal play,
+0.26% in safe mode, at 24µs per draw. `MAX_RESAMPLES` went from 10 to 40,
+which is a few hundred microseconds of arithmetic with no I/O behind it.
+
+**The style-diversity threshold is 99%, not 100%.** The missing percent is
+measured rather than conceded: safe mode shrinks `pacing` to three values
+against a five-card history, so a repeat is occasionally unavoidable, and
+twenty draws over eight genres can miss one by luck. Both are real behaviour.
+A threshold of 100% would not make the sampler better, it would make the suite
+flake.
+
+**Two map-repair bugs, in the one part of the system that must never fail.**
+A duplicated door record made the repair erase the tile the *kept* door owned
+and then throw `MapRepairError`; and a grid shipping fewer rows than it
+declared was padded silently, because the change was logged by comparing
+declared dimensions rather than actual ones. Both are fixed; the repair is
+supposed to be the thing that guarantees a playable map, so it is not allowed
+to be the thing that raises.
+
+**`FakeLLM` now writes real Polish.** It used to emit English prose with a
+Polish language tag, which meant the language eval could not measure anything
+and `LLM_MODE=fake` was not a usable Polish demo. It also placed open
+questions by counting rather than by reading which locations the plan asked
+for.
+
+**Coverage went to the state engine and the map validator, not to a number.**
+`pipeline/engine.py` is at 100% and `map_validator.py` at 99%, and the six
+lines left are defensive `raise`s for conditions that cannot currently be
+reached. The engine got its own test file against a hand-drawn seven-by-five
+grid, because everywhere else it is exercised through a generated map — which
+is the right way to catch integration problems and the wrong way to catch the
+engine refusing an action it should have taken.
+
+**Errors:**
+
+- The budget message said "daily limit reached. come back tomorrow." The cap
+  is monthly and there is no daily cap, so it now says so.
+- The error screen no longer shows `detail` to a player. It carries exception
+  text, dollar amounts and endpoint names — useful while developing, nothing a
+  player should be handed. It is shown under `import.meta.env.DEV` only.
+- An unhandled exception now returns the error contract rather than FastAPI's
+  default 500 body. Without `kind`, the client fell back to "cannot reach the
+  server" for a server that answered perfectly well, and the traceback was the
+  only record of what actually happened.
+- `[RETRY]` became `[BACK TO THE MENU]`, which is what the button does.
+
+**`make` is the entry point, not a list of commands in a README.** `make`
+runs exactly what CI runs. `make eval-live` exists, spends money, and says so;
+CI never passes `--live`.
+
+**No live eval in CI.** The safe-mode and language dimensions can be run
+against Vertex with `--live`, and that is the number that matters for
+classification judgement — but it is a thing a person runs on purpose, not
+something that fires on every push against a 10 PLN budget.
+
+**The README screenshots were taken from a live game, not a mock one.** One
+Idea-mode run against Vertex, locally, measured at about $0.19 — under the
+$0.28 estimate. Mock mode draws placeholder images, and a README hero showing
+a procedural noise blob would misrepresent the product it is documenting.
+
+---
+
 ## Still needed
 
 **The actual Lyria RealTime cost.** At a 10 PLN budget this is no longer a
@@ -515,7 +600,18 @@ with that key returned `429 RESOURCE_EXHAUSTED`, which suggests free-tier
 limits, and free-tier Lyria usage may cost nothing at all. That would explain
 "costs are fine" and would make live music essentially free.
 
-**A custom domain.** `dreamwalker.zur-i.com` needs `zur-i.com` verified in
-Google Search Console before Cloud Run will map it - ownership of a domain is
-not something a deploy script can prove. The service works on its `run.app`
-URL until then; `infra/README.md` has the two commands.
+**The custom domain's certificate.** `zur-i.com` is verified in Google Search
+Console, the mapping exists, and `dreamwalker.zur-i.com` resolves to
+`ghs.googlehosted.com` through Vercel's nameservers and every public resolver
+checked. Google's managed certificate is still issuing - it reports the ACME
+challenge as not yet visible and retries every fifteen minutes, which is
+ordinary inside the stated 15 minute to 24 hour window. The service works on
+its `run.app` URL meanwhile. The Search Console TXT record at the apex must
+stay in place permanently: Google re-checks it, and removing it lapses
+ownership.
+
+**Somebody who is not the author playing a game in production.** Phase 8's
+exit criterion, and the one thing here that is not a code change: it needs a
+real Google sign-in. Add the address to `allowed_emails` in
+`infra/terraform/terraform.tfvars` and `tofu apply` - a new revision, no
+rebuild.

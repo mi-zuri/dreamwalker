@@ -71,6 +71,25 @@ _WORDS = {
             "a brass key",
         ],
         "verb": ["Ask what happened", "Wait and listen", "Open the cupboard", "Go back outside"],
+        "title": "The Long Shed",
+        "premise": (
+            "You arrive late, and the door is already open. Nobody here expected you, "
+            "and nobody says so."
+        ),
+        "beat": "Something happens at",
+        "scene": (
+            "The door gives on a room you were not expecting. [POI:{thing}] sits where a "
+            "table should be. Someone straightens up and does not look at you."
+        ),
+        "question": "What do you say?",
+        "consequence": "they answer, eventually",
+        "note": "This is based on a real event in which people were hurt.",
+        "ending_title": "What The Shed Kept",
+        "ending_summary": (
+            "You went in, and you came back out with less certainty than you started with. "
+            "Nothing was resolved, and everything was answered."
+        ),
+        "did": "You stayed and listened.",
     },
     "pl": {
         "place": [
@@ -93,6 +112,25 @@ _WORDS = {
             "Otwórz szafkę",
             "Wyjdź na zewnątrz",
         ],
+        "title": "Długa Szopa",
+        "premise": (
+            "Przychodzisz za późno, a drzwi są już otwarte. Nikt się ciebie tutaj nie "
+            "spodziewał i nikt tego nie mówi."
+        ),
+        "beat": "Coś się wydarza w miejscu:",
+        "scene": (
+            "Za drzwiami jest pokój, którego się nie spodziewałeś. [POI:{thing}] stoi tam, "
+            "gdzie powinien być stół. Ktoś prostuje się i nie patrzy w twoją stronę."
+        ),
+        "question": "Co mówisz?",
+        "consequence": "w końcu odpowiadają",
+        "note": "To jest oparte na prawdziwym wydarzeniu, w którym ucierpieli ludzie.",
+        "ending_title": "Co Zatrzymała Szopa",
+        "ending_summary": (
+            "Wszedłeś tam i wyszedłeś z mniejszą pewnością, niż miałeś na początku. "
+            "Nic się nie rozstrzygnęło, a jednak wszystko zostało powiedziane."
+        ),
+        "did": "Zostałeś i słuchałeś.",
     },
 }
 
@@ -170,7 +208,14 @@ class FakeLLM(LLM):
         found = _LANGUAGE.search(system)
         return found.group(1) if found else "en"  # type: ignore[return-value]
 
-    def words(self, system: str) -> dict[str, list[str]]:
+    def words(self, system: str) -> dict:
+        """The fake's vocabulary in whichever language the prompt asked for.
+
+        It matters that this is a real translation rather than English with a
+        language tag: `LLM_MODE=fake` is how a Polish game gets walked in a
+        browser without spending anything, and the language eval measures
+        every player-facing string a run produces.
+        """
         return _WORDS[self.language(system)]
 
     @property
@@ -201,6 +246,8 @@ def _plan(fake: FakeLLM, prompt: str, system: str) -> StoryPlanDraft:
         PlannedLocationDraft(
             name=words["place"][i % len(words["place"])],
             description=f"{words['thing'][i % len(words['thing'])]}, and someone waiting.",
+            # Always English: `visual` is an image prompt, and the language
+            # rule carves it out of the story language for that reason.
             visual=f"a narrow room, low winter light, one figure at a table, detail {i}",
             locked=i == count - 1,
         )
@@ -208,52 +255,52 @@ def _plan(fake: FakeLLM, prompt: str, system: str) -> StoryPlanDraft:
     ]
     return StoryPlanDraft(
         language=fake.language(system),
-        title="The Long Shed" if fake.language(system) == "en" else "Długa Szopa",
-        premise=(
-            "You arrive late, and the door is already open. "
-            "Nobody here expected you, and nobody says so."
-        ),
+        title=words["title"],
+        premise=words["premise"],
         locations=locations,
         beats=[
             BeatDraft(
-                title=f"Beat {i + 1}", summary=f"Something happens at {loc.name}.", location_index=i
+                title=f"Beat {i + 1}",
+                summary=f"{words['beat']} {loc.name}.",
+                location_index=i,
             )
             for i, loc in enumerate(locations)
         ],
         open_question_count=1 + (rng.random() > 0.5),
-        content_note=(
-            "This is based on a real event in which people were hurt."
-            if "SAFETY:" in system
-            else ""
-        ),
+        content_note=words["note"] if "SAFETY:" in system else "",
     )
+
+
+#: The scene brief numbers its locations from zero and flags the ones that
+#: should ask an open question. Read back rather than counted, so a question
+#: lands on the location the plan chose rather than on the first few.
+_LOCATION_LINE = re.compile(r"^(\d+)\. (.*)$", re.MULTILINE)
 
 
 @register(ScenesDraft)
 def _scenes(fake: FakeLLM, prompt: str, system: str) -> ScenesDraft:
     words = fake.words(system)
-    # The brief lists the locations, numbered from zero; count them back.
-    count = sum(1 for line in prompt.splitlines() if re.match(r"^\d+\. ", line)) or 1
-    asks = [i for i, line in enumerate(prompt.splitlines()) if "[asks an open question]" in line]
+    listed = [
+        (int(index), "[asks an open question]" in rest)
+        for index, rest in _LOCATION_LINE.findall(prompt)
+    ] or [(0, False)]
+
     scenes = []
-    for index in range(count):
+    for index, asks in listed:
         thing = words["thing"][index % len(words["thing"])]
         scenes.append(
             SceneDraft(
                 location_index=index,
-                text=(
-                    f"The door gives on a room you were not expecting. [POI:{thing}] sits where "
-                    f"a table should be. Someone straightens up and does not look at you."
-                ),
+                text=words["scene"].format(thing=thing),
                 choices=[
                     ChoiceDraft(
                         text=words["verb"][position % len(words["verb"])],
-                        consequence="they answer, eventually",
+                        consequence=words["consequence"],
                         on_canon=position == 0,
                     )
                     for position in range(CHOICES_PER_SCENE)
                 ],
-                open_question="What do you say?" if index < len(asks) else "",
+                open_question=words["question"] if asks else "",
             )
         )
     return ScenesDraft(language=fake.language(system), scenes=scenes)
@@ -261,16 +308,14 @@ def _scenes(fake: FakeLLM, prompt: str, system: str) -> ScenesDraft:
 
 @register(EndingDraft)
 def _ending(fake: FakeLLM, prompt: str, system: str) -> EndingDraft:
+    words = fake.words(system)
     count = sum(1 for line in prompt.splitlines() if re.match(r"^\d+\. ", line))
     return EndingDraft(
         language=fake.language(system),
-        title="What The Shed Kept",
-        summary=(
-            "You went in, and you came back out with less certainty than you started with. "
-            "Nothing was resolved, and everything was answered."
-        ),
+        title=words["ending_title"],
+        summary=words["ending_summary"],
         player_beats=[
-            PlayerBeatDraft(beat_index=i, what_you_did="You stayed and listened.", matched=True)
+            PlayerBeatDraft(beat_index=i, what_you_did=words["did"], matched=True)
             for i in range(count)
         ],
     )

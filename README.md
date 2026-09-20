@@ -11,7 +11,7 @@ story and the language of the interface set separately.
 
 ---
 
-![main screen screenshot](docs/images/preview.png)
+![a scene: the generated illustration, the story text and three choices](docs/images/preview.png)
 
 ---
 
@@ -30,6 +30,8 @@ story and the language of the interface set separately.
    what actually happened, with citations and a match score.
 
 Every run is saved and can be replayed.
+
+![the map: an ASCII grid with walls, a locked door and lettered destinations](docs/images/map.png)
 
 ## Stack
 
@@ -50,8 +52,12 @@ bun run dev          # web on :5174, backend on :8000
 bun run dev:web      # web only
 bun run dev:backend  # backend only
 bun run test         # backend tests
+bun run eval         # the eval suite: pass rates per dimension
 bun run gen:api      # regenerate the frontend types (backend must be running)
 ```
+
+`make` runs everything CI runs — lint, tests, evals, the frontend build and
+the schema contract — and `make eval` on its own prints the pass rates.
 
 Out of the box it runs on recorded fixtures and spends nothing. See
 [docs/SETUP.md](docs/SETUP.md) for the three run modes and for pointing it at a
@@ -62,7 +68,9 @@ real Google Cloud project.
 | | |
 |---|---|
 | [docs/SETUP.md](docs/SETUP.md) | Getting it running, locally and on GCP |
+| [docs/architecture.md](docs/architecture.md) | How it is put together, and why |
 | [docs/decisions.md](docs/decisions.md) | Every design decision, with the measurements behind it |
+| [docs/evals.md](docs/evals.md) | What is measured rather than asserted, and what the measurements found |
 | [docs/safety.md](docs/safety.md) | What news mode refuses, and how the rest is handled |
 | [docs/style-cards.md](docs/style-cards.md) | The style catalog, generated from the code |
 | [infra/README.md](infra/README.md) | Deploying it, and what is deliberately not deployed |

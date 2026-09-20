@@ -15,6 +15,13 @@ data/
 
 # Cache
 .cache/
+.pytest_cache/
+.ruff_cache/
+__pycache__/
+
+# Coverage
+.coverage
+htmlcov/
 
 # IDE
 .idea/

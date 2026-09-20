@@ -486,6 +486,9 @@ That is reversible for 30 days, then permanent.
 | Backend only | `bun run dev:backend` |
 | Regenerate frontend API types | `bun run gen:api` (backend must be running) |
 | Backend tests | `bun run test` |
+| The eval suite (offline, free) | `make eval` |
+| The eval suite against real models | `make eval-live` — spends money |
+| Everything CI runs | `make` |
 | Typecheck + build the web app | `cd web && bunx tsc --noEmit && bun run build` |
 | Verify models | `cd backend && uv run python scripts/verify_models.py` |
 | Check live music works | `cd backend && uv run python -m app.music.cli check` |

@@ -300,3 +300,12 @@ def dump_catalog() -> str:
             )
         lines.append("")
     return "\n".join(lines)
+
+
+if __name__ == "__main__":  # `make docs` regenerates the page from here
+    import sys
+
+    # `write`, not `print`: the table already ends in a newline and a second
+    # one would put `make docs` permanently one line away from the committed
+    # page.
+    sys.stdout.write(dump_catalog())

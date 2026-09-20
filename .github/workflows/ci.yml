@@ -37,6 +37,14 @@ jobs:
         working-directory: backend
         run: uv run pytest -q
 
+      # Evals are graded, not asserted: each dimension reports a pass rate
+      # and the run fails only when one drops below its threshold. Same
+      # guarantee as the tests about spending - `--live` is the only thing
+      # here that talks to a model, and CI never passes it.
+      - name: Eval
+        working-directory: backend
+        run: PYTHONPATH=. uv run python -m evals
+
   web:
     runs-on: ubuntu-latest
     steps:

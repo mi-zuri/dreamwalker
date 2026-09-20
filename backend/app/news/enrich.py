@@ -112,7 +112,7 @@ async def enrich(llm: LLM, event: Event, assets: AssetStore | None = None) -> Ev
     if event.dossier is not None:
         return event
 
-    read = await fetch_bodies(event.articles)
+    await fetch_bodies(event.articles)
     draft = await llm.json(STAGE, _articles_brief(event), DossierDraft, system=INSTRUCTIONS)
 
     event.dossier = Dossier(
@@ -133,7 +133,9 @@ async def enrich(llm: LLM, event: Event, assets: AssetStore | None = None) -> Ev
         timeline=[_fact(f, event) for f in draft.timeline],
         uncertain=[_fact(f, event) for f in draft.uncertain],
         language=event.language,
-        thin=read == 0,
+        # Asked of the articles rather than of the fetch, so a body that
+        # arrived some other way still counts as having been read.
+        thin=not any(a.body for a in event.articles),
     )
     event.beats = [b.model_dump() for b in draft.beats[:MAX_BEATS]]
     if event.dossier.thin:
