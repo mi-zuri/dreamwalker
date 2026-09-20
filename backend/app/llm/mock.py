@@ -22,7 +22,8 @@ from app.models.game import (
     Pos,
     Scene,
 )
-from app.models.script import GameScript
+from app.models.script import ChoiceOutcome, GameScript
+from app.pipeline.ending import style_labels
 from app.pipeline.map_validator import gated_destinations
 from app.pipeline.world_map import DoorSpec, build_map, layout_for
 from app.settings import settings
@@ -85,16 +86,46 @@ def build_game(game_id: str, req: NewGameRequest) -> tuple[GameState, GameScript
 
     ending = fixture.ending.model_copy(deep=True)
     ending.game_id = game_id
+    # The fixtures were recorded before the catalog could translate a card.
+    ending.style_labels = style_labels(state.style_card, state.story_language)
 
+    choices = {k: [c.model_copy(deep=True) for c in v] for k, v in fixture.choices.items()}
     script = GameScript(
         game_id=game_id,
         fixture_id=fixture.id,
         scenes={k: v.model_copy(deep=True) for k, v in fixture.scenes.items()},
-        choices={k: [c.model_copy(deep=True) for c in v] for k, v in fixture.choices.items()},
-        open_question_at=fixture.open_question_at,
+        choices=choices,
+        outcomes=_recorded_outcomes(choices, state),
+        open_questions=_recorded_questions(fixture, state.story_language),
         ending=ending,
+        ending_final=True,
     )
     return state, script
+
+
+def _recorded_questions(fixture: MockGame, language: str) -> dict[str, str]:
+    """The fixtures predate multiple open questions and record one location."""
+    if not fixture.open_question_at:
+        return {}
+    prompt = OPEN_QUESTION_PROMPT.get(language, OPEN_QUESTION_PROMPT["en"])
+    return {fixture.open_question_at: prompt}
+
+
+def _recorded_outcomes(
+    choices: dict[str, list[Choice]], state: GameState
+) -> dict[str, ChoiceOutcome]:
+    """Fixtures record no canon, so the first choice at each place is it.
+
+    That is arbitrary, and it is meant to be: it exists so the turn engine has
+    exactly one code path, not so a mock run has a meaningful match score.
+    """
+    beats = [b.beat_id for b in state.beat_progress]
+    outcomes: dict[str, ChoiceOutcome] = {}
+    for index, (location_id, options) in enumerate(sorted(choices.items())):
+        beat_id = beats[index] if index < len(beats) else None
+        for position, choice in enumerate(options):
+            outcomes[choice.id] = ChoiceOutcome(beat_id=beat_id, on_canon=position == 0)
+    return outcomes
 
 
 def _regenerate_map(state: GameState) -> None:

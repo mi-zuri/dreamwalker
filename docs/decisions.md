@@ -234,6 +234,110 @@ seam Phase 4 replaces with a real story-driven map request.
 
 ---
 
+## Phase 4 decisions
+
+**The image quota, not the image price, is what shapes the pipeline.** Vertex
+allows this project **two image-generation requests per minute**
+(`GenContentImageGenRequestsPerMinutePerProjectPerBaseModelGlobal`, read live
+from the Cloud Quotas API). That is project-wide and it is the real constraint;
+at $0.0336 flat per image, cost never was. A game wants six pictures, so they
+are generated in the order the player will arrive at them, one at a time,
+through a shared token bucket. The picture nobody has reached yet is the one
+that waits. A quota increase is a support request, not a setting - see below.
+
+**Only the opening image blocks the loading screen, and only for six seconds.**
+Everything else is generated while the player reads and walks.
+
+**Scenes are written behind the loading screen, not on it.** Measured: the plan
+call is 4-10s and the scene call for five Polish locations is another 6-7s.
+Doing both before the player sees anything put a full-size game at 12-14s. So
+`open_game` returns after the plan, the map and the opening image; `fill_scenes`
+runs behind it, and a move to a location whose scene has not landed yet waits on
+a gate rather than dropping the player into an empty room. Measured cost of the
+restructure: ready fell from 12.3s to about 8s.
+
+**A scene stage that fails must still leave a finishable game.** There is no
+loading screen left to show an error on, so the fallback assembles each
+location's own planned description plus three deliberately dull choices. A
+location with no choices could never be resolved, which would strand the player
+on the map forever.
+
+**Which choice is "on canon" is server-side.** The player sees three equal
+options. `GameScript.outcomes` holds the beat each one advances and whether it
+follows the plan, so the ending can tell the difference without the game ever
+rendering a hint.
+
+**Style cards are sampled, never generated.** Enum ids only, so the sampler
+costs nothing, adds no latency and behaves identically in both languages - the
+catalog holds a Polish label, an English label and one English prompt fragment
+per value. Anti-repetition is per player and rejects a draw sharing two or more
+axes with any of that player's last five cards. Twenty consecutive draws produce
+twenty distinct cards.
+
+**`LLM_MODE=fake` is a third mode, not a synonym for `mock`.** Mock replays four
+recorded games and never touches the pipeline. Fake runs the real pipeline -
+planning, map generation, scene assembly, the turn engine, the ending - against
+a synthetic model. A stage-sequencing bug can only show up under `fake`, which
+is why the API tests use it.
+
+**Measured, live, for a full Idea-mode game:** English three-location run $0.105,
+Polish five-location run $0.177, against a $0.28 estimate. Both under, because
+the model chooses fewer locations than the maximum and text came in cheaper than
+modelled. `gemini-3.5-flash-lite` is available on Vertex for this project - the
+allowlist fallback was never needed.
+
+---
+
+## Phase 5 decisions
+
+**There is no scheduled ingest job.** The plan called for Cloud Scheduler every
+48 hours per region, which is about $9 a month spent whether or not anybody
+plays - most of a 10 PLN budget, in violation of "0 PLN when not playing". A
+News game instead refreshes its region's pool first, and only when the pool is
+thinner than 12 playable events or older than 6 hours. Nobody playing means
+nothing spent.
+
+**That is affordable because ingest was split in two.** Collecting, clustering
+and scoring a whole region is feeds (free), embeddings (fractions of a cent) and
+one batched scoring call. Reading real articles and writing a beat graph happens
+per *event*, on the way into a game, and is cached on the event so the second
+player to draw it pays nothing.
+
+**Measured, live: $0.046 for both regions together**, against a $0.40 per region
+per run budget. Poland yielded **47 playable events**, World **58**, both well
+past the 30 the phase gates on - so the deferred 4h collector is still not
+needed.
+
+**Importance is counted; only judgement is asked for.** How many outlets carried
+an event, how many distinct ones, and how recent it is are facts about the pool.
+A model rating them would be guessing at something countable. Interest,
+playability and safety are asked, once per region, for the top 80 events by
+computed importance.
+
+**The clustering threshold was measured, not assumed, and the plan's number was
+wrong.** On 120 real Polish articles: the same story scores 0.89-0.94, and *two
+unrelated fatal road accidents* score 0.89. The planned 0.82 would have merged
+whole genres into single events. Cosine alone cannot separate them at any
+threshold, so clustering now requires **0.88 cosine and at least one shared
+distinctive word**, where "distinctive" means low document frequency across the
+batch. Two crashes share tragedia, kierowca, nie zyje; they do not share
+Kartuzy. That gate is what fixed it.
+
+**Per-player dedup stays at 0.93 with a shared-canonical-URL escape hatch.**
+Real embeddings have a high floor - two unrelated stories still score 0.72 - so
+a strict threshold is right, and the URL test catches the common case of one
+story being re-clustered under a new id on a later run.
+
+**A private individual's name is dropped during enrichment**, not in a prompt
+later. Nothing downstream can leak what it was never given.
+
+**`feeds.reuters.com` is still dead** and is absent by decision, not oversight.
+All six Polish feeds, all three World feeds and the Wikipedia Current Events
+portal were re-verified live this phase; the Polish feeds carry a press photo on
+better than 80% of items.
+
+---
+
 ## Still needed
 
 **The actual Lyria RealTime cost.** At a 10 PLN budget this is no longer a
@@ -245,3 +349,18 @@ Worth checking whether the Gemini API key is on the free tier: an image call
 with that key returned `429 RESOURCE_EXHAUSTED`, which suggests free-tier
 limits, and free-tier Lyria usage may cost nothing at all. That would explain
 "costs are fine" and would make live music essentially free.
+
+**A Vertex image-quota increase.** Two image generations per minute, project
+wide, is the default for a new project and it is the one number that would
+change the shape of the pipeline if it moved. Raising it is a request rather
+than a setting:
+
+    gcloud alpha services quota update \
+      --service=aiplatform.googleapis.com \
+      --consumer=projects/mi-zuri-dreamwalker-app \
+      --metric=aiplatform.googleapis.com/generate_content_image_gen_requests \
+      --unit=1/min/{project}/{base_model} --value=20
+
+It is worth filing, but the game is built to be correct without it: the pacing
+falls out of the token bucket, and a location that never gets its picture
+renders without one.

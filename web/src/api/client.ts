@@ -124,7 +124,18 @@ export function streamStages(
             .map((l) => l.slice(5).trim())
             .join('');
           if (!data) continue;
-          const payload = JSON.parse(data) as { stage?: Stage; ready?: boolean };
+          const payload = JSON.parse(data) as {
+            stage?: Stage;
+            ready?: boolean;
+            kind?: AppErrorKind;
+            detail?: string;
+          };
+          // Generation runs after the create call has already returned, so a
+          // failure has nowhere to surface except here.
+          if (payload.kind) {
+            onError(new ApiError(payload.kind, payload.detail));
+            return;
+          }
           if (payload.stage) onStage(payload.stage);
           if (payload.ready) {
             onReady();

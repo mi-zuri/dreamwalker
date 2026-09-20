@@ -68,7 +68,11 @@ export interface paths {
         };
         /**
          * Stream
-         * @description Coarse loading progress. The game itself is already persisted.
+         * @description Coarse loading progress, and the only place a generation failure surfaces.
+         *
+         *     Deliberately does not load the game first: under live generation the state
+         *     does not exist yet when the client subscribes, which is the entire reason
+         *     this stream exists.
          */
         get: operations["stream_api_games__game_id__stream_get"];
         put?: never;
@@ -290,6 +294,8 @@ export interface components {
             /** Player */
             player?: components["schemas"]["PlayerBeat"][];
             style_card: components["schemas"]["StyleCard"];
+            /** Style Labels */
+            style_labels?: components["schemas"]["StyleLabel"][];
             /** Sources */
             sources?: components["schemas"]["SourceLink"][];
         };
@@ -532,7 +538,11 @@ export interface components {
         };
         /**
          * StageEvent
-         * @description One SSE frame from the loading stream: a stage, then finally `ready`.
+         * @description One SSE frame from the loading stream.
+         *
+         *     A load emits `stage` several times and then either `ready` or an `error`.
+         *     All three shapes are declared on one model so the generated client has a
+         *     single thing to parse.
          */
         StageEvent: {
             /** Stage */
@@ -542,6 +552,7 @@ export interface components {
              * @default false
              */
             ready: boolean;
+            error?: components["schemas"]["ApiError"] | null;
         };
         /** StyleCard */
         StyleCard: {
@@ -559,6 +570,19 @@ export interface components {
             music_mood: string;
             /** Pacing */
             pacing: string;
+        };
+        /**
+         * StyleLabel
+         * @description One axis of the style card, already translated for the player.
+         *
+         *     The catalog that knows how to say "ink wash" in Polish lives on the
+         *     backend, so the labels are sent rather than the raw enum ids.
+         */
+        StyleLabel: {
+            /** Axis */
+            axis: string;
+            /** Label */
+            label: string;
         };
         /** ValidationError */
         ValidationError: {

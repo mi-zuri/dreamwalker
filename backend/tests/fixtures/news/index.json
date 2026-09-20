@@ -1,0 +1,7 @@
+{
+ "https://www.polsatnews.pl/rss/polska.xml": "polsatnews-polska_xml.xml",
+ "https://www.rmf24.pl/fakty/polska/feed": "rmf24-feed.xml",
+ "https://feeds.bbci.co.uk/news/world/rss.xml": "bbc-rss_xml.xml",
+ "https://www.theguardian.com/world/rss": "guardian-rss.xml",
+ "wikipedia": "wikipedia-current-events.json"
+}

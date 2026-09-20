@@ -33,6 +33,7 @@ export type BeatProgress = S['BeatProgress'];
 export type CanonBeat = S['CanonBeat'] & { sources: string[] };
 export type PlayerBeat = S['PlayerBeat'];
 export type SourceLink = S['SourceLink'];
+export type StyleLabel = S['StyleLabel'];
 export type ReplayTurn = S['ReplayTurn'];
 export type SavedGame = S['SavedGame'];
 export type NewGameRequest = S['NewGameRequest'];
@@ -52,6 +53,7 @@ export type GameState = S['GameState'] & {
 export type EndingComparison = S['EndingComparison'] & {
   canon: CanonBeat[];
   player: PlayerBeat[];
+  style_labels: StyleLabel[];
   sources: SourceLink[];
 };
 

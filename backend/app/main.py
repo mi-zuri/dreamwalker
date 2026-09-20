@@ -14,6 +14,7 @@ from sse_starlette.sse import EventSourceResponse
 
 from app.auth import CurrentUser
 from app.errors import AppError, ErrorKind, app_error_handler
+from app.game.map import destination_at
 from app.media import PALETTES, placeholder_svg
 from app.models.game import (
     AnswerRequest,
@@ -32,6 +33,7 @@ from app.models.script import GameScript
 from app.pipeline import engine, orchestrator
 from app.settings import settings
 from app.storage import get_store
+from app.storage.assets import get_assets
 from app.storage.base import GameStore
 
 app = FastAPI(title="Dreamwalker API", version="0.1.0")
@@ -116,15 +118,21 @@ async def create_game(
     req: NewGameRequest, user: CurrentUser, st: GameStore = Store
 ) -> NewGameResponse:
     _raise_if_forced()
-    state = await orchestrator.start_game(st, user.uid, req)
-    return NewGameResponse(game_id=state.game_id)
+    game_id = await orchestrator.start_game(st, user.uid, req)
+    return NewGameResponse(game_id=game_id)
 
 
 @app.get("/api/games/{game_id}/stream", response_model=StageEvent)
 async def stream(game_id: str, user: CurrentUser, st: GameStore = Store) -> EventSourceResponse:
-    """Coarse loading progress. The game itself is already persisted."""
-    await _load(st, user.uid, game_id)
-    return EventSourceResponse(orchestrator.stream_progress())
+    """Coarse loading progress, and the only place a generation failure surfaces.
+
+    Deliberately does not load the game first: under live generation the state
+    does not exist yet when the client subscribes, which is the entire reason
+    this stream exists.
+    """
+    if orchestrator.job_for(game_id) is None:
+        await _load(st, user.uid, game_id)
+    return EventSourceResponse(orchestrator.stream_progress(game_id))
 
 
 @app.get("/api/games")
@@ -147,6 +155,15 @@ async def move(
     game_id: str, req: MoveRequest, user: CurrentUser, st: GameStore = Store
 ) -> GameState:
     state, script = await _load(st, user.uid, game_id)
+
+    # Scenes are written in the background while the player reads the premise
+    # and walks. A player who sprints to the first location can beat them, so
+    # the move waits rather than dropping them into an empty room.
+    target = destination_at(state.map, req.to)
+    if target is not None and target.location_id not in script.scenes:
+        await orchestrator.await_scenes(game_id)
+        state, script = await _load(st, user.uid, game_id)
+
     engine.apply_move(state, script, req.to)
     return await _commit(st, user.uid, state, script)
 
@@ -187,10 +204,11 @@ def _replay_of(script: GameScript) -> Replay:
 async def ending(game_id: str, user: CurrentUser, st: GameStore = Store) -> EndingComparison:
     state, script = await _load(st, user.uid, game_id)
     if state.finished:
-        played_at = datetime.now(UTC).isoformat()
+        await orchestrator.finish_ending(st, user.uid, state, script)
+        await st.put_script(user.uid, script)
         await st.save_finished(
             user.uid,
-            engine.to_saved(state, script, played_at),
+            engine.to_saved(state, script, datetime.now(UTC).isoformat()),
             script.ending,
             _replay_of(script),
         )
@@ -207,6 +225,20 @@ async def replay(game_id: str, user: CurrentUser, st: GameStore = Store) -> Repl
 
 
 # ── Media ───────────────────────────────────────────────────────────────
+
+
+@app.get("/api/media/asset/{key}", include_in_schema=False)
+async def asset(key: str) -> Response:
+    """Generated images, when they are held in this process rather than in GCS."""
+    found = await get_assets().get(key)
+    if found is None:
+        raise AppError("network", f"unknown asset {key}", status_code=404)
+    data, content_type = found
+    return Response(
+        content=data,
+        media_type=content_type,
+        headers={"Cache-Control": "public, max-age=31536000, immutable"},
+    )
 
 
 @app.get("/api/media/placeholder/{palette}/{seed}.svg", include_in_schema=False)

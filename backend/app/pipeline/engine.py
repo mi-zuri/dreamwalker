@@ -10,8 +10,8 @@ the player cannot actually reach is ignored rather than trusted.
 """
 
 from app.game.map import destination_at, path_to
-from app.llm.mock import OPEN_QUESTION_PROMPT
 from app.models.game import (
+    BeatProgress,
     GameState,
     OpenQuestion,
     Pos,
@@ -34,14 +34,20 @@ def _enter(state: GameState, script: GameScript, dest_key: str, location_id: str
     done = dest_key in state.resolved
     state.view = "travel" if done else "scene"
     state.choices = [] if done else [c.model_copy() for c in script.choices.get(location_id, [])]
+    question = script.open_questions.get(location_id)
     state.open_question = (
-        OpenQuestion(
-            id=f"q-{location_id}",
-            prompt=OPEN_QUESTION_PROMPT.get(state.story_language, OPEN_QUESTION_PROMPT["en"]),
-        )
-        if not done and script.open_question_at == location_id
-        else None
+        OpenQuestion(id=f"q-{location_id}", prompt=question) if question and not done else None
     )
+
+
+def _beat_for(state: GameState, script: GameScript, choice_id: str) -> BeatProgress | None:
+    """The beat this choice resolves, or the next pending one if it names none."""
+    outcome = script.outcomes.get(choice_id)
+    if outcome is not None and outcome.beat_id:
+        named = next((b for b in state.beat_progress if b.beat_id == outcome.beat_id), None)
+        if named is not None:
+            return named
+    return next((b for b in state.beat_progress if b.status == "pending"), None)
 
 
 def apply_move(state: GameState, script: GameScript, to: Pos) -> GameState:
@@ -77,12 +83,16 @@ def apply_choice(state: GameState, script: GameScript, choice_id: str) -> GameSt
     shown_scene = state.current_scene.model_copy(deep=True)
     state.turn += 1
 
-    # Advance the next pending beat; a mid-list choice counts as divergence.
-    pending = next((b for b in state.beat_progress if b.status == "pending"), None)
-    if pending is not None:
-        pending.status = "diverged" if index == 1 else "matched"
-        if pending.status == "diverged":
-            state.divergence = min(1.0, state.divergence + DIVERGENCE_STEP)
+    # Whether this choice follows the planned beat was decided at generation
+    # time and kept server-side, so the player never sees which one is "right".
+    outcome = script.outcomes.get(choice_id)
+    on_canon = outcome.on_canon if outcome is not None else index == 0
+    beat = _beat_for(state, script, choice_id)
+    if beat is not None:
+        beat.status = "matched" if on_canon else "diverged"
+    if not on_canon:
+        state.divergence = min(1.0, state.divergence + DIVERGENCE_STEP)
+    script.taken.append(choice_id)
 
     state.choices = []
     state.current_scene = state.current_scene.model_copy(

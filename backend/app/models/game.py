@@ -139,6 +139,17 @@ class SourceLink(BaseModel):
     title: str
 
 
+class StyleLabel(BaseModel):
+    """One axis of the style card, already translated for the player.
+
+    The catalog that knows how to say "ink wash" in Polish lives on the
+    backend, so the labels are sent rather than the raw enum ids.
+    """
+
+    axis: str
+    label: str
+
+
 class EndingComparison(BaseModel):
     game_id: str
     mode: Mode
@@ -149,6 +160,7 @@ class EndingComparison(BaseModel):
     canon: list[CanonBeat] = Field(default_factory=list)
     player: list[PlayerBeat] = Field(default_factory=list)
     style_card: StyleCard
+    style_labels: list[StyleLabel] = Field(default_factory=list)
     sources: list[SourceLink] = Field(default_factory=list)
 
 
@@ -193,10 +205,16 @@ class NewGameResponse(BaseModel):
 
 
 class StageEvent(BaseModel):
-    """One SSE frame from the loading stream: a stage, then finally `ready`."""
+    """One SSE frame from the loading stream.
+
+    A load emits `stage` several times and then either `ready` or an `error`.
+    All three shapes are declared on one model so the generated client has a
+    single thing to parse.
+    """
 
     stage: Stage | None = None
     ready: bool = False
+    error: "ApiError | None" = None
 
 
 class ApiError(BaseModel):

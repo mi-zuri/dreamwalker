@@ -167,3 +167,125 @@ def test_placeholder_image_is_deterministic_svg(client):
     assert a.text == b.text
     assert a.text != client.get("/api/media/placeholder/rust/harbour.svg").text
     assert client.get("/api/media/placeholder/neon/harbour.svg").status_code == 404
+
+
+# ── the generated path ──────────────────────────────────────────────────
+
+
+def _load_stream(client, game_id: str) -> list[dict]:
+    with client.stream("GET", f"/api/games/{game_id}/stream") as res:
+        lines = [line for line in res.iter_lines() if line.startswith("data:")]
+    return [json.loads(line.removeprefix("data:")) for line in lines]
+
+
+def test_a_generated_game_is_played_through_the_same_api(client, monkeypatch):
+    """`LLM_MODE=fake` runs the real pipeline, so this covers what mock cannot."""
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "llm_mode", "fake")
+    game_id = client.post("/api/games", json=NEW_GAME).json()["game_id"]
+
+    frames = _load_stream(client, game_id)
+    assert [f["stage"] for f in frames[:-1]] == ["story", "map", "images", "music", "finishing"]
+    assert frames[-1] == {"ready": True}
+
+    state = client.get(f"/api/games/{game_id}").json()
+    assert state["current_scene"]["location_id"] == "start"
+    assert state["current_scene"]["image_url"]
+    assert not state["choices"], "the opening scene is a SET OFF, not a decision"
+
+    state = client.post(f"/api/games/{game_id}/set-off").json()
+    assert state["view"] == "travel"
+
+    state = _play(client, state)
+    assert state["finished"] is True
+
+    ending = client.get(f"/api/games/{game_id}/ending").json()
+    assert ending["title"] and ending["summary"]
+    assert len(ending["player"]) == len(state["beat_progress"])
+    assert ending["match_score"] is None
+
+
+def test_a_generated_opening_image_is_served_back(client, monkeypatch):
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "llm_mode", "fake")
+    game_id = client.post("/api/games", json=NEW_GAME).json()["game_id"]
+    _load_stream(client, game_id)
+
+    url = client.get(f"/api/games/{game_id}").json()["current_scene"]["image_url"]
+    res = client.get(url)
+    assert res.status_code == 200
+    assert res.content.startswith(b"\x89PNG")
+    assert client.get("/api/media/asset/nope.png").status_code == 404
+
+
+def test_a_generation_failure_reaches_the_loading_screen(client, monkeypatch):
+    from app.llm.fake import FakeLLM
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "llm_mode", "fake")
+    monkeypatch.setattr(
+        "app.pipeline.orchestrator.make_llm", lambda: FakeLLM(fail_stages=("plan",))
+    )
+
+    game_id = client.post("/api/games", json=NEW_GAME).json()["game_id"]
+    frames = _load_stream(client, game_id)
+    assert frames[-1]["kind"] == "generation_failed"
+    # The game was never persisted, so the client cannot walk into a half-game.
+    assert client.get(f"/api/games/{game_id}").status_code == 404
+
+
+def test_the_budget_cap_is_checked_before_anything_generates(client, monkeypatch):
+    """The cap is a precondition, not a post-hoc check: nothing is spent first."""
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "llm_mode", "fake")
+    monkeypatch.setattr(settings, "monthly_budget_usd", 0.0)
+
+    res = client.post("/api/games", json=NEW_GAME)
+    assert res.status_code == 429
+    assert res.json()["kind"] == "budget_exceeded"
+
+
+def test_two_games_by_one_player_do_not_draw_the_same_style_card(client, monkeypatch):
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "llm_mode", "fake")
+    cards = []
+    for _ in range(4):
+        game_id = client.post("/api/games", json=NEW_GAME).json()["game_id"]
+        _load_stream(client, game_id)
+        cards.append(client.get(f"/api/games/{game_id}").json()["style_card"])
+    assert len({json.dumps(c, sort_keys=True) for c in cards}) == len(cards)
+
+
+def test_a_player_who_outruns_the_scenes_waits_for_them(client, monkeypatch):
+    """Scenes are written behind the loading screen, so a fast walk can beat them."""
+    import asyncio
+
+    from app.pipeline import live
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "llm_mode", "fake")
+    real = live.fill_scenes
+
+    async def slow(*args, **kwargs):
+        await asyncio.sleep(0.4)
+        return await real(*args, **kwargs)
+
+    monkeypatch.setattr(live, "fill_scenes", slow)
+
+    game_id = client.post("/api/games", json=NEW_GAME).json()["game_id"]
+    _load_stream(client, game_id)
+    state = client.post(f"/api/games/{game_id}/set-off").json()
+
+    game_map = GameMap(**state["map"])
+    first = game_map.destinations[0]
+    state = client.post(
+        f"/api/games/{game_id}/move", json={"to": _tile_of(game_map, first.key).model_dump()}
+    ).json()
+
+    assert state["view"] == "scene"
+    assert state["current_scene"]["location_id"] == first.location_id
+    assert state["choices"], "the scene the player waited for has to have choices"

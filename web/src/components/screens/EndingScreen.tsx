@@ -92,9 +92,14 @@ export function EndingScreen() {
         <div className="ascii-box p-3">
           <div className="text-xs text-gray-500 mb-2">-- STYLE --</div>
           <div className="flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-600">
-            {Object.entries(ending.style_card).map(([axis, value]) => (
+            {/* Labels come translated from the backend, which owns the catalog;
+                the raw enum ids are the fallback for a game saved before that. */}
+            {(ending.style_labels.length
+              ? ending.style_labels
+              : Object.entries(ending.style_card).map(([axis, label]) => ({ axis, label }))
+            ).map(({ axis, label }) => (
               <span key={axis}>
-                {axis}: <span className="text-gray-400">{value}</span>
+                {axis.replace(/_/g, ' ')}: <span className="text-gray-400">{label}</span>
               </span>
             ))}
           </div>
