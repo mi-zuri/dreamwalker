@@ -18,3 +18,16 @@ provider "google" {
   project = var.project_id
   region  = var.region
 }
+
+# The Billing Budgets API bills its quota to a project you name, and local
+# ADC does not name one - so a plain provider gets a 403 pointing at Google's
+# own shared client project. Only the budget needs this, so only the budget
+# gets it: a blanket `user_project_override` would put the header on every
+# call this configuration makes.
+provider "google" {
+  alias                 = "billing"
+  project               = var.project_id
+  region                = var.region
+  billing_project       = var.project_id
+  user_project_override = true
+}

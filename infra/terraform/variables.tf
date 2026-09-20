@@ -46,11 +46,29 @@ variable "billing_account" {
 
 variable "monthly_budget_usd" {
   description = <<-EOT
-    The hard cap the app enforces on itself before every generation, and the
-    amount the billing alert watches. Roughly 10 PLN.
+    The hard cap the app enforces on itself before every generation. In USD
+    because that is the currency every model is priced in - the app adds up
+    token and image costs, not invoice lines.
   EOT
   type        = number
   default     = 2.40
+}
+
+variable "billing_budget" {
+  description = <<-EOT
+    The billing alert, which is a different thing in a different currency: a
+    budget has to be denominated in the billing account's own currency, and
+    this one is in PLN. Roughly the same money as `monthly_budget_usd`, and
+    deliberately a round number rather than a converted one.
+  EOT
+  type = object({
+    currency = string
+    amount   = number
+  })
+  default = {
+    currency = "PLN"
+    amount   = 10
+  }
 }
 
 variable "github_repo" {

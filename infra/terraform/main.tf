@@ -258,6 +258,13 @@ resource "google_cloud_run_v2_service" "app" {
     google_project_service.required,
     google_secret_manager_secret_iam_member.gemini_api_key,
   ]
+
+  lifecycle {
+    # Cloud Run reports a service-level `scaling` block whether or not one was
+    # asked for, so leaving it out of the configuration makes every plan want
+    # to remove it. The scaling that matters is inside `template`, above.
+    ignore_changes = [scaling]
+  }
 }
 
 # Public, because the invite list is enforced one layer in: an uninvited

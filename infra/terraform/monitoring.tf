@@ -39,7 +39,10 @@ resource "google_monitoring_alert_policy" "errors" {
       filter          = "resource.type=\"cloud_run_revision\" AND metric.type=\"logging.googleapis.com/user/${google_logging_metric.errors.name}\""
       comparison      = "COMPARISON_GT"
       threshold_value = 5
-      duration        = "0s"
+      # Non-zero on purpose: Cloud Monitoring refuses to accept an explicit
+      # missing-data policy without one, and a five-minute floor also keeps a
+      # single bad minute from paging anybody.
+      duration = "300s"
 
       aggregations {
         alignment_period   = "600s"
@@ -62,8 +65,14 @@ resource "google_monitoring_alert_policy" "errors" {
 # The app stops itself at `monthly_budget_usd` before it generates anything,
 # so this is the backstop for the costs it does not control: storage, egress,
 # and anything a mistake in that check lets through.
+#
+# Denominated in PLN, because a budget must use the billing account's own
+# currency - USD here is rejected as an invalid argument, with no hint as to
+# which argument. This adopts the 30 PLN budget created during setup and
+# brings it down to 10.
 resource "google_billing_budget" "monthly" {
-  count = var.billing_account == "" ? 0 : 1
+  count    = var.billing_account == "" ? 0 : 1
+  provider = google.billing
 
   billing_account = var.billing_account
   display_name    = "Dreamwalker monthly"
@@ -74,8 +83,8 @@ resource "google_billing_budget" "monthly" {
 
   amount {
     specified_amount {
-      currency_code = "USD"
-      units         = tostring(ceil(var.monthly_budget_usd))
+      currency_code = var.billing_budget.currency
+      units         = tostring(var.billing_budget.amount)
     }
   }
 
