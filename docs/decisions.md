@@ -1,6 +1,8 @@
 # Decisions
 
-Answers to `open-questions.md`, plus the design changes they force.
+The build log: the seventeen questions the plan ended on, the answers, and
+every decision taken since, with the measurements behind them. Read
+[architecture.md](architecture.md) for what the system *is*; this is why.
 Settled 2026-09-20.
 
 ## Framing
@@ -23,7 +25,7 @@ That second half is the constraint that actually changes the architecture.
 | 4 | Guest play | **Google-only** |
 | 5 | Keep the name DREAMWALKER | **Yes** |
 | 6 | Idea-mode ending without match score | **Yes** |
-| 7 | Locations per game | **Variable, 1–5, driven by the story** |
+| 7 | Locations per game | **Variable, driven by the story** (shipped as 3–5) |
 | 8 | Open-text questions | **Variable, 0–2, driven by the story** |
 | 9 | Anti-repetition on ideas | **No** |
 | 10 | PL player + world news → Polish story | **Yes** |
@@ -125,8 +127,9 @@ would take down Firestore and auth too, and recovering is manual.
 ## Notes on specific answers
 
 **Q7/Q8 — variable length.** Story length now drives structure rather than a
-fixed template: the map stage picks 1–5 destinations and the scene stage picks
-0–2 open questions to fit the story. This both improves the feel and cuts cost
+fixed template: the plan stage picks the destinations and the scene stage picks
+0–2 open questions to fit the story. The lower bound was later raised from one
+to three - a single-room game is not a game - so the shipped range is 3–5. This both improves the feel and cuts cost
 on short stories. The map validator must therefore handle a single-destination
 map, and the mock fixtures need a short example.
 

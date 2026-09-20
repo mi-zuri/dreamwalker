@@ -1,24 +1,21 @@
 # Setup — what you need to do by hand
 
-Everything here is a one-off. Steps 1–2 work right now; 3–6 unblock the real
-generation pipeline in Phase 2 and later. Nothing in the repo needs any of this
-to run in mock mode.
+The runbook. Every step here is a one-off, and none of it is needed to run the
+repo in mock mode. For what the resulting cloud project *is*, see
+[gcp.md](gcp.md); this page is how it got built.
 
-**Status as of 2026-09-19: steps 2-7 are all complete.** Project
-`mi-zuri-dreamwalker-app` is created and billed, ADC is configured, all APIs are
-on, Firestore and the assets bucket exist, all three models verified, and Google
-sign-in is enabled with `web/.env.local` written. What follows is kept as the
-record of how it was set up, and for rebuilding a dev environment later.
+**Status: complete.** Project `mi-zuri-dreamwalker-app` is created and billed,
+ADC is configured, the APIs are on, Firestore and the assets bucket exist, all
+three models are verified, Google sign-in works and the service is live at
+https://dreamwalker.zur-i.com. What follows is kept as the record, and for
+rebuilding a dev environment later.
 
-Facts already confirmed on this machine, so you can skip checking them:
+Facts already confirmed on this machine:
 
-- `gcloud` is installed and both your accounts are logged in.
-- Billing account `01C6F0-6B1488-53CEC3` is active and attached to `mi-zuri-com`.
-- `mi-zuri-com` holds your sites: two static buckets, one scheduler job
-  (`fetch-projects-hourly`), one secret (`github-token`), some BigQuery work.
-  No Cloud Run services, no Firestore, no Firebase Auth, no budget alerts.
-- Still missing everywhere: Application Default Credentials, the Vertex AI API,
-  Firestore.
+- `gcloud` is installed and both accounts are logged in.
+- Billing account `01C6F0-6B1488-53CEC3` is active.
+- `mi-zuri-com` is a *different*, personal project holding unrelated sites.
+  Dreamwalker never touches it.
 
 ---
 
@@ -387,31 +384,22 @@ it, you should see a `google.com` entry with `"enabled": true`.
 ## 8. Deploying it
 
 Everything above is the local half. Putting it on the internet is
-`infra/scripts/deploy.sh`, and [`infra/README.md`](../infra/README.md) is the
-guide to it — one Cloud Run service in `europe-west1` serving both the API and
-the frontend, scaling to zero when nobody is playing.
+`infra/scripts/deploy.sh`; [gcp.md](gcp.md) explains what that creates and
+why — one Cloud Run service in `europe-west1` serving both the API and the
+frontend, scaling to zero when nobody is playing.
 
 Two things there only you can do:
 
 - **The invite list.** `allowed_emails` in `infra/terraform/terraform.tfvars`.
   Anyone not on it gets the login screen and nothing else. It is the strongest
   cost control the project has.
-- **The custom domain.** Done — the service is live at
-  **https://dreamwalker.zur-i.com**, on a Google-managed certificate with no
-  load balancer. The step no script can do is verifying `zur-i.com` in
+- **The custom domain.** Done — live at **https://dreamwalker.zur-i.com** on a
+  Google-managed certificate with no load balancer. The step no script can do
+  is verifying `zur-i.com` in
   [Search Console](https://search.google.com/search-console) under the same
-  account that runs `gcloud`; `infra/README.md` has the rest, including why a
-  pending certificate reports DNS as misconfigured when it is not.
-
----
-
-## 9. Nothing left to decide
-
-The design questions this section used to list are all answered, in
-[`decisions.md`](decisions.md) — the name, the Idea-mode ending, per-player
-anti-repetition, replay fidelity, story language for world news, and whether to
-ship before news mode landed. That page is the record; this one is the
-runbook.
+  account that runs `gcloud`. [gcp.md §6](gcp.md#6-what-terraform-cannot-do)
+  has the rest, including why a pending certificate reports DNS as
+  misconfigured when it is not.
 
 ---
 

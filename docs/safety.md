@@ -6,8 +6,8 @@ kept decent, and what is refused outright.
 Everything here is enforced in code and asserted in `backend/tests/test_news_mode.py`.
 The evals there run against `FakeLLM`, which classifies on keywords: they assert
 that the **pipeline honours a classification**, not that a model produces the
-right one. Whether the model classifies correctly is measured separately, live,
-in Phase 9.
+right one. Whether the model classifies correctly is measured separately, by
+the `safe-mode` eval dimension - see [evals.md](evals.md).
 
 ## Three classes
 

@@ -9,6 +9,9 @@ it drifted from what actually happened.
 A game takes two to ten minutes. Polish and English, with the language of the
 story and the language of the interface set separately.
 
+Live at **https://dreamwalker.zur-i.com** — invite-only, because a public URL
+with a live model behind it is a public bill.
+
 ---
 
 ![a scene: the generated illustration, the story text and three choices](docs/images/preview.png)
@@ -65,18 +68,21 @@ real Google Cloud project.
 
 ## Documentation
 
+Start here:
+
 | | |
 |---|---|
-| [docs/SETUP.md](docs/SETUP.md) | Getting it running, locally and on GCP |
-| [docs/architecture.md](docs/architecture.md) | How it is put together, and why |
-| [docs/decisions.md](docs/decisions.md) | Every design decision, with the measurements behind it |
+| [docs/game-design.md](docs/game-design.md) | The game itself: the modes, the loop, the mechanics |
+| [docs/architecture.md](docs/architecture.md) | How it is built, from the ground up |
+| [docs/news-pipeline.md](docs/news-pipeline.md) | Where the news comes from, and what is done to it |
+| [docs/gcp.md](docs/gcp.md) | What runs on Google Cloud, and how code gets there |
+| [docs/SETUP.md](docs/SETUP.md) | Running it yourself, locally and in the cloud |
+
+Reference:
+
+| | |
+|---|---|
 | [docs/evals.md](docs/evals.md) | What is measured rather than asserted, and what the measurements found |
 | [docs/safety.md](docs/safety.md) | What news mode refuses, and how the rest is handled |
 | [docs/style-cards.md](docs/style-cards.md) | The style catalog, generated from the code |
-| [infra/README.md](infra/README.md) | Deploying it, and what is deliberately not deployed |
-
-Two files in `docs/` are history rather than documentation, and say so at the
-top: [docs/game_plan.md](docs/game_plan.md) is the original design, almost none
-of which survived the rebuild, and
-[docs/open-questions.md](docs/open-questions.md) is the question sheet that
-`decisions.md` answers.
+| [docs/decisions.md](docs/decisions.md) | The build log: every decision, with the measurements behind it |
