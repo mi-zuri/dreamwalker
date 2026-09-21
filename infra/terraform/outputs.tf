@@ -22,3 +22,8 @@ output "github_service_account" {
   description = "Value for the GitHub Actions `service_account` input."
   value       = local.cicd == 0 ? "" : google_service_account.deploy[0].email
 }
+
+output "build_service_account" {
+  description = "The identity Cloud Build runs as; passed to `gcloud builds submit`."
+  value       = local.cicd == 0 ? "" : google_service_account.build[0].email
+}

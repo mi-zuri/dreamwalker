@@ -70,3 +70,43 @@ resource "google_service_account_iam_member" "deploy_acts_as_run" {
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.deploy[0].email}"
 }
+
+# Cloud Build needs an identity of its own.
+#
+# `gcloud builds submit` with no `--service-account` runs the build as the
+# Compute Engine default account, which carries `roles/editor`. Letting the
+# deployer act as that would hand CI edit rights over the whole project
+# through the back door - the opposite of the binding above, which is
+# deliberately narrow. So builds get an account with the three permissions a
+# build actually needs, and the deployer may act as that and nothing else.
+#
+# This only works because `infra/cloudbuild.yaml` already sets
+# `options.logging: CLOUD_LOGGING_ONLY`: a custom service account is rejected
+# while a build still expects to write its logs to a bucket.
+resource "google_service_account" "build" {
+  count        = local.cicd
+  account_id   = "dreamwalker-build"
+  display_name = "Dreamwalker Cloud Build"
+}
+
+resource "google_project_iam_member" "build" {
+  for_each = local.cicd == 0 ? toset([]) : toset([
+    "roles/logging.logWriter",       # the build's own logs
+    "roles/artifactregistry.writer", # push the image, pull the cache layer
+    # Read the source tarball the deployer uploaded. Project-scoped rather
+    # than bound to `<project>_cloudbuild`, because that bucket is created by
+    # the first build and so does not exist on a fresh apply.
+    "roles/storage.objectViewer",
+  ])
+
+  project = var.project_id
+  role    = each.key
+  member  = "serviceAccount:${google_service_account.build[0].email}"
+}
+
+resource "google_service_account_iam_member" "deploy_acts_as_build" {
+  count              = local.cicd
+  service_account_id = google_service_account.build[0].name
+  role               = "roles/iam.serviceAccountUser"
+  member             = "serviceAccount:${google_service_account.deploy[0].email}"
+}
