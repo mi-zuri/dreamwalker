@@ -46,7 +46,6 @@ jobs:
             --config=infra/cloudbuild.yaml \
             --service-account="$BUILD_SA" \
             --substitutions="_IMAGE=${IMAGE},_CACHE=${REPO}/app:latest" .
-          gcloud artifacts docker tags add "$IMAGE" "${REPO}/app:latest" --project="$PROJECT"
 
       # Terraform is not run here on purpose. CI ships code; changing what the
       # infrastructure *is* - the invite list, the budget, who can reach what -

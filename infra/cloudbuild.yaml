@@ -8,6 +8,11 @@ steps:
       - build
       - --file=infra/Dockerfile
       - --tag=${_IMAGE}
+      # The same image also becomes the cache tag. Moving `latest` afterwards
+      # with `gcloud artifacts docker tags add` needs `artifactregistry.tags.
+      # delete`, which `roles/artifactregistry.writer` does not carry - so the
+      # tag is pushed here instead, where it is an ordinary upload.
+      - --tag=${_CACHE}
       # Previous image as a layer cache: dependencies almost never change,
       # and pulling them beats reinstalling them.
       - --cache-from=${_CACHE}
@@ -15,6 +20,9 @@ steps:
 
 images:
   - ${_IMAGE}
+  # `latest` is only ever a cache hint; deployments always name a digest-stable
+  # tag so a rollback is a redeploy of a known image.
+  - ${_CACHE}
 
 substitutions:
   _IMAGE: ""

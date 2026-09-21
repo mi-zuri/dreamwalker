@@ -50,7 +50,7 @@ resource "google_service_account_iam_member" "deploy_from_github" {
 resource "google_project_iam_member" "deploy" {
   for_each = local.cicd == 0 ? toset([]) : toset([
     "roles/run.admin",                # roll out a new revision
-    "roles/artifactregistry.writer",  # push the image
+    "roles/artifactregistry.writer",  # read the image it is about to deploy
     "roles/cloudbuild.builds.editor", # build it in the first place
     "roles/storage.admin",            # Cloud Build's staging bucket
     "roles/logging.viewer",           # read a failed build's logs

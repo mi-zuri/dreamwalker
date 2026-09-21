@@ -70,12 +70,10 @@ fi
 # ── Build ───────────────────────────────────────────────────────────────
 cd "$ROOT"
 echo "==> building"
+# The build pushes both `$IMAGE` and the `latest` cache tag; see
+# infra/cloudbuild.yaml for why the tag is not moved afterwards.
 gcloud builds submit --project="$PROJECT" --config=infra/cloudbuild.yaml \
   --substitutions="_IMAGE=${IMAGE},_CACHE=${REPO}/app:latest" .
-
-# `latest` is only ever a cache hint; deployments always name a digest-stable
-# tag so a rollback is a redeploy of a known image.
-gcloud artifacts docker tags add "$IMAGE" "${REPO}/app:latest" --project="$PROJECT" >/dev/null
 
 # ── Roll out ────────────────────────────────────────────────────────────
 cd "$TF_DIR"
