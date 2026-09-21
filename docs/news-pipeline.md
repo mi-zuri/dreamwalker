@@ -139,12 +139,24 @@ because those cost real money.
 |---|---|
 | Lifetime | 7 days, then it reads as history |
 | Offered | `playable` and rank ≥ 0.35 |
-| Drawn from | the top 12 the player has not seen |
+| Shown to the player | the top 7 they have not seen, by **importance** |
+| Drawn for them | the top 12 they have not seen |
 | Weighting | rank × 1.6 if fresh × 0.55 per repeat of the same subject |
 
-Selection is weighted-random rather than "take the best". Always serving the
-highest-ranked event would mean every player in a day plays the same thing,
-and would make the pool's depth pointless.
+There are two ways out of the pool, and they order it differently.
+
+**The player chooses.** News mode shows seven stories and they pick one. That
+list is ordered by `importance` — what actually mattered — rather than by
+`rank`, which weights playability highest. Playability still filters: an event
+nobody can act inside is not a game however large it was. It just stops
+deciding the order, because the question a player is answering is "which of
+these do I want to live through", not "which of these makes the best game".
+
+**The machine chooses**, which is what `LLM_MODE=mock` and any future
+unattended path do. That draw is weighted-random over the top 12 rather than
+"take the best": always serving the highest-ranked event would mean every
+player in a day plays the same thing, and would make the pool's depth
+pointless.
 
 ## 6. Per-player dedup
 

@@ -3,16 +3,13 @@
   "request": {
     "mode": "news",
     "region": "world",
-    "story_language": "en",
-    "ui_language": "en"
+    "language": "en"
   },
   "state": {
     "game_id": "mock-news-world-en",
     "mode": "news",
     "view": "scene",
     "region": "world",
-    "story_language": "en",
-    "ui_language": "en",
     "safety_class": "allowed",
     "source_note": "based on real events, dramatized",
     "style_card": {
@@ -132,7 +129,8 @@
     ],
     "divergence": 0,
     "turn": 0,
-    "finished": false
+    "finished": false,
+    "language": "en"
   },
   "scenes": {
     "loc-a": {

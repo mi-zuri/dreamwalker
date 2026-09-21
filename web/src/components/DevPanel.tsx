@@ -66,7 +66,7 @@ export function DevPanel() {
           </div>
 
           <div className="text-gray-600 pt-1">
-            {store.screen} · ui:{store.uiLanguage} · story:{store.storyLanguage}
+            {store.screen} · {store.language}
           </div>
         </div>
       ) : (

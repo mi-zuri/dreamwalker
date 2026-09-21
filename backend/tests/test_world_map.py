@@ -163,7 +163,7 @@ def test_a_mock_game_can_be_played_on_a_generated_map(monkeypatch):
     monkeypatch.setattr(settings, "mock_map_source", "generated")
     state, _ = build_game(
         "phase3000000test",
-        NewGameRequest(mode="idea", idea="a lighthouse", story_language="en", ui_language="en"),
+        NewGameRequest(mode="idea", idea="a lighthouse", language="en"),
     )
 
     report = validate_map(state.map)

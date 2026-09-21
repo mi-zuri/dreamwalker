@@ -39,8 +39,7 @@ def request(**overrides) -> NewGameRequest:
         **{
             "mode": "idea",
             "idea": "a night porter who keeps finding the same coat",
-            "story_language": "en",
-            "ui_language": "en",
+            "language": "en",
             **overrides,
         }
     )
@@ -63,7 +62,7 @@ async def build(*, scenes: bool = True, **overrides):
         game_id="test-game",
         req=req,
         style=STYLE,
-        brief=live.idea_brief(req.idea or "", req.story_language),
+        brief=live.idea_brief(req.idea or "", req.language),
         progress=_record(stages),
         mode="idea",
     )
@@ -321,9 +320,9 @@ async def test_a_game_costs_roughly_what_the_cost_model_promised():
 
 
 async def test_a_polish_game_is_planned_and_written_in_polish():
-    _, _, state, script, plan, _ = await build(story_language="pl", ui_language="pl")
+    _, _, state, script, plan, _ = await build(language="pl")
     assert plan.language == "pl"
-    assert state.story_language == "pl"
+    assert state.language == "pl"
     assert script.open_questions
 
 

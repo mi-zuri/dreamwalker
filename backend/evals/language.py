@@ -4,10 +4,13 @@ Language is the setting most likely to fail partially rather than completely:
 the premise lands in Polish, a choice drifts back to English, the ending is
 right and the fallback text beside it is not. So this does not check "is the
 output Polish"; it checks every player-facing string a finished run produces,
-plus the two places language is deliberately *not* the story's: the interface,
-which follows its own setting, and image prompts, which are always English
-because the models follow English better and because a Polish prompt is how
-Polish words end up painted on a picture.
+plus the one place language is deliberately not the player's: image prompts,
+which are always English because the models follow English better and because
+a Polish prompt is how Polish words end up painted on a picture.
+
+One setting decides all of it. The last combination below is the one that used
+to break: a Polish-sourced event played in English, where the dossier, the
+articles and the region all pull the other way.
 
 Offline, the prose comes from `FakeLLM`, so what is being measured is the
 plumbing - that the right instruction reaches every stage and the right
@@ -135,30 +138,47 @@ def _player_facing(opened, state, ending) -> list[tuple[str, str]]:
     return [(name, text) for name, text in items if text and text.strip()]
 
 
-async def _one_run(ctx: Context, *, mode: str, story: Language, ui: Language) -> list[Case]:
+#: Headlines to build the news runs from, in the language of the source.
+TITLES: dict[Language, str] = {
+    "en": "Divers reach the wreck and recover the ship's bell",
+    "pl": "Nurkowie dotarli do wraku i wydobyli okrętowy dzwon",
+}
+
+
+async def _one_run(
+    ctx: Context, *, mode: str, language: Language, source: Language | None = None
+) -> list[Case]:
+    """One full run in `language`, optionally built from `source`-language news."""
     llm = ctx.model()
-    label = f"{mode}/{story}"
-    if ui != story:
-        label += f"-ui-{ui}"
+    source = source or language
+    label = f"{mode}/{language}"
+    if source != language:
+        label += f"-from-{source}"
 
     if mode == "news":
-        title = "Divers reach the wreck and recover the ship's bell"
-        opened = await fx.open_news(llm, fx.make_event(title), story_language=story, ui_language=ui)
+        event = fx.make_event(
+            TITLES[source], region="pl" if source == "pl" else "world", language=source
+        )
+        opened = await fx.open_news(llm, event, language=language)
     else:
         idea = {
             "pl": "latarnik zastaje lampę już zapaloną",
             "en": "a lighthouse keeper finds the lamp already lit",
-        }[story]
-        opened = await fx.open_idea(llm, idea=idea, story_language=story, ui_language=ui)
+        }[language]
+        opened = await fx.open_idea(llm, idea=idea, language=language)
 
     state, ending = await fx.played_ending(llm, opened, fx.alternate)
 
     cases = [
-        check(f"{label}/plan-echoes-language", opened.plan.language == story, opened.plan.language),
         check(
-            f"{label}/state-keeps-both-settings",
-            state.story_language == story and state.ui_language == ui,
-            f"story {state.story_language}, ui {state.ui_language}",
+            f"{label}/plan-echoes-language",
+            opened.plan.language == language,
+            opened.plan.language,
+        ),
+        check(
+            f"{label}/state-keeps-the-setting",
+            state.language == language,
+            f"state says {state.language}",
         ),
     ]
 
@@ -166,8 +186,8 @@ async def _one_run(ctx: Context, *, mode: str, story: Language, ui: Language) ->
         cases.append(
             check(
                 f"{label}/{name}",
-                looks_like(text, story),
-                f"expected {LANGUAGE_NAME[story]}: {text[:90]!r}",
+                looks_like(text, language),
+                f"expected {LANGUAGE_NAME[language]}: {text[:90]!r}",
             )
         )
 
@@ -193,7 +213,7 @@ async def _one_run(ctx: Context, *, mode: str, story: Language, ui: Language) ->
             )
             for index, prompt in enumerate(image_prompts)
         ]
-        wanted = f'`language` field to "{story}"'
+        wanted = f'`language` field to "{language}"'
         told = [system for stage, system in llm.prompts if stage in {"plan", "scenes", "ending"}]
         cases.append(
             check(
@@ -207,7 +227,7 @@ async def _one_run(ctx: Context, *, mode: str, story: Language, ui: Language) ->
         cases.append(
             check(
                 f"{label}/source-note-localised",
-                looks_like(opened.state.source_note or "", story),
+                looks_like(opened.state.source_note or "", language),
                 f"{opened.state.source_note!r}",
             )
         )
@@ -216,18 +236,19 @@ async def _one_run(ctx: Context, *, mode: str, story: Language, ui: Language) ->
 
 async def run(ctx: Context) -> list[Case]:
     cases: list[Case] = []
+    #: mode, the language asked for, the language the source material is in.
     combinations: list[tuple[str, Language, Language]] = [
         ("idea", "en", "en"),
         ("idea", "pl", "pl"),
         ("news", "en", "en"),
         ("news", "pl", "pl"),
-        # The two settings are independent, and the pair most likely to be
-        # confused: a Polish interface around an English story.
-        ("idea", "en", "pl"),
+        # The setting has to beat the material: Polish region, Polish articles,
+        # Polish dossier, English game. And the mirror of it.
+        ("news", "en", "pl"),
         ("news", "pl", "en"),
     ]
     # Every combination, every time: this is a fixed matrix rather than a
     # sample, so `--samples` has nothing to vary here.
-    for mode, story, ui in combinations:
-        cases += await _one_run(ctx, mode=mode, story=story, ui=ui)
+    for mode, language, source in combinations:
+        cases += await _one_run(ctx, mode=mode, language=language, source=source)
     return cases

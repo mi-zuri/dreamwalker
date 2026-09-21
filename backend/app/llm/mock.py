@@ -30,7 +30,7 @@ from app.settings import settings
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "fixtures" / "games"
 
-#: Prompts for the one open-text question, per story language.
+#: Prompts for the one open-text question, per language.
 OPEN_QUESTION_PROMPT = {"pl": "Co powiedziałeś?", "en": "What did you say?"}
 
 
@@ -57,20 +57,17 @@ def load_fixtures() -> tuple[MockGame, ...]:
 
 
 def pick_fixture(req: NewGameRequest) -> MockGame:
-    """Closest recorded run: same mode first, then language, then region."""
+    """Closest recorded run: mode, then language, then region.
+
+    Language is a hard filter; region is only a preference. Recorded prose
+    cannot be re-languaged, only relabelled, so matching the region first
+    would hand a player who asked for English a game written in Polish -
+    the one thing the language toggle promises never to do.
+    """
     fixtures = load_fixtures()
-    by_mode = [f for f in fixtures if f.request.mode == req.mode]
-    pool = by_mode or list(fixtures)
-    exact = next(
-        (
-            f
-            for f in pool
-            if f.request.story_language == req.story_language
-            and (req.mode == "idea" or f.request.region == req.region)
-        ),
-        None,
-    )
-    return exact or pool[0]
+    by_mode = [f for f in fixtures if f.request.mode == req.mode] or list(fixtures)
+    pool = [f for f in by_mode if f.request.language == req.language] or by_mode
+    return next((f for f in pool if f.request.region == req.region), pool[0])
 
 
 def build_game(game_id: str, req: NewGameRequest) -> tuple[GameState, GameScript]:
@@ -79,15 +76,15 @@ def build_game(game_id: str, req: NewGameRequest) -> tuple[GameState, GameScript
     state = fixture.state.model_copy(deep=True)
     state.game_id = game_id
     # The menu is authoritative for language, even when the fixture differs.
-    state.story_language = req.story_language
-    state.ui_language = req.ui_language
+    # `pick_fixture` has already made sure it does not, for the text.
+    state.language = req.language
     if settings.mock_map_source == "generated":
         _regenerate_map(state)
 
     ending = fixture.ending.model_copy(deep=True)
     ending.game_id = game_id
     # The fixtures were recorded before the catalog could translate a card.
-    ending.style_labels = style_labels(state.style_card, state.story_language)
+    ending.style_labels = style_labels(state.style_card, state.language)
 
     choices = {k: [c.model_copy(deep=True) for c in v] for k, v in fixture.choices.items()}
     script = GameScript(
@@ -96,7 +93,7 @@ def build_game(game_id: str, req: NewGameRequest) -> tuple[GameState, GameScript
         scenes={k: v.model_copy(deep=True) for k, v in fixture.scenes.items()},
         choices=choices,
         outcomes=_recorded_outcomes(choices, state),
-        open_questions=_recorded_questions(fixture, state.story_language),
+        open_questions=_recorded_questions(fixture, state.language),
         ending=ending,
         ending_final=True,
     )

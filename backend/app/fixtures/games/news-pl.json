@@ -3,16 +3,13 @@
   "request": {
     "mode": "news",
     "region": "pl",
-    "story_language": "pl",
-    "ui_language": "pl"
+    "language": "pl"
   },
   "state": {
     "game_id": "mock-news-pl",
     "mode": "news",
     "view": "scene",
     "region": "pl",
-    "story_language": "pl",
-    "ui_language": "pl",
     "safety_class": "safe_mode",
     "content_note": "Ta historia opiera się na prawdziwej powodzi i jej skutkach dla mieszkańców. Grasz jako wolontariusz. Nie ma tu drastycznych opisów, a osoby prywatne pozostają anonimowe. Jeśli temat jest dla Ciebie trudny, możesz wrócić do menu.",
     "source_note": "na podstawie prawdziwych wydarzeń, zdramatyzowane",
@@ -133,7 +130,8 @@
     ],
     "divergence": 0,
     "turn": 0,
-    "finished": false
+    "finished": false,
+    "language": "pl"
   },
   "scenes": {
     "loc-a": {

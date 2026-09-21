@@ -13,7 +13,7 @@ type S = components['schemas'];
 
 export type Mode = S['GameState']['mode'];
 export type Region = NonNullable<S['GameState']['region']>;
-export type Language = S['GameState']['story_language'];
+export type Language = S['GameState']['language'];
 export type SafetyClass = S['GameState']['safety_class'];
 export type View = S['GameState']['view'];
 export type BeatStatus = S['BeatProgress']['status'];
@@ -36,6 +36,7 @@ export type SourceLink = S['SourceLink'];
 export type StyleLabel = S['StyleLabel'];
 export type ReplayTurn = S['ReplayTurn'];
 export type SavedGame = S['SavedGame'];
+export type NewsStory = S['NewsStory'];
 export type NewGameRequest = S['NewGameRequest'];
 export type User = S['Me'];
 

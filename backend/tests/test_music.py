@@ -47,7 +47,7 @@ def test_the_music_prompt_is_the_mood_and_the_place():
     assert RULES in text
 
 
-def test_the_story_language_never_reaches_the_music_prompt():
+def test_the_players_language_never_reaches_the_music_prompt():
     """`visual` is already English; `description` is not, and is not used."""
     assert "polski opis" not in location_prompt(STYLE, PLACE)
 
@@ -181,8 +181,7 @@ def make_session(ws):
     state = GameState(
         game_id="g1",
         mode="idea",
-        story_language="en",
-        ui_language="en",
+        language="en",
         style_card=STYLE,
         map={"width": 3, "height": 3, "tiles": ["###", "#@#", "###"], "destinations": []},
         player_pos={"x": 1, "y": 1},

@@ -36,6 +36,13 @@ interface FirebaseConfig {
 let config: FirebaseConfig | null = null;
 
 /**
+ * Also from `/api/config`: whether News mode has a pool to offer. Mock replays
+ * recorded games and never reaches one, so the menu skips the picker. It lives
+ * here because this is where the boot config is read, not because it is auth.
+ */
+let picks = false;
+
+/**
  * Awaited once, before the app renders. A backend that cannot be reached
  * leaves `config` null, which lands the player on the login screen and then
  * on the error screen - the honest outcome, and better than a blank page.
@@ -45,6 +52,7 @@ export async function loadConfig(): Promise<void> {
     const res = await fetch('/api/config');
     if (!res.ok) return;
     const body = await res.json();
+    picks = body?.picks_stories === true;
     if (!body?.firebase) return;
     const f = body.firebase;
     config = {
@@ -63,6 +71,10 @@ export async function loadConfig(): Promise<void> {
 
 export function firebaseEnabled(): boolean {
   return config !== null;
+}
+
+export function picksStories(): boolean {
+  return picks;
 }
 
 let app: FirebaseApp | undefined;

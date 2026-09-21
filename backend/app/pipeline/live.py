@@ -150,7 +150,7 @@ async def open_game(
     them if the player gets there first.
     """
     mode = mode or req.mode
-    language = req.story_language
+    language = req.language
 
     await progress("story")
     plan = await make_plan(
@@ -268,8 +268,7 @@ def _state(
         mode=mode,
         view="scene",
         region=req.region if mode == "news" else None,
-        story_language=req.story_language,
-        ui_language=req.ui_language,
+        language=req.language,
         safety_class=safety_class,
         content_note=content_note or None,
         source_note=source_note,

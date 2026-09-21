@@ -3,15 +3,12 @@
   "request": {
     "mode": "idea",
     "idea": "a lighthouse keeper who keeps receiving letters meant for someone else",
-    "story_language": "en",
-    "ui_language": "en"
+    "language": "en"
   },
   "state": {
     "game_id": "mock-idea-en",
     "mode": "idea",
     "view": "scene",
-    "story_language": "en",
-    "ui_language": "en",
     "safety_class": "allowed",
     "style_card": {
       "genre": "folk_tale",
@@ -130,7 +127,8 @@
     ],
     "divergence": 0,
     "turn": 0,
-    "finished": false
+    "finished": false,
+    "language": "en"
   },
   "scenes": {
     "loc-a": {

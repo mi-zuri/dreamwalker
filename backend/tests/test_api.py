@@ -8,8 +8,7 @@ from app.models.game import GameMap, Pos
 NEW_GAME = {
     "mode": "idea",
     "idea": "a lighthouse keeper receiving letters meant for someone else",
-    "story_language": "en",
-    "ui_language": "en",
+    "language": "en",
 }
 
 
@@ -69,7 +68,7 @@ def test_full_game(client):
 
     state = client.get(f"/api/games/{game_id}").json()
     assert state["mode"] == "idea"
-    assert state["story_language"] == "en"
+    assert state["language"] == "en"
     assert state["finished"] is False
 
     state = _play(client, state)
@@ -91,18 +90,29 @@ def test_full_game(client):
 
 
 def test_language_comes_from_the_menu_not_the_fixture(client):
+    game_id = client.post("/api/games", json={**NEW_GAME, "language": "pl"}).json()["game_id"]
+    state = client.get(f"/api/games/{game_id}").json()
+    assert state["language"] == "pl"
+
+
+def test_the_region_never_overrides_the_language(client):
+    """A Polish event played in English stays English.
+
+    The recorded Polish run is the closest match on region and the furthest on
+    language, and language is the one the player set.
+    """
     game_id = client.post(
-        "/api/games", json={**NEW_GAME, "story_language": "pl", "ui_language": "en"}
+        "/api/games", json={"mode": "news", "region": "pl", "language": "en"}
     ).json()["game_id"]
     state = client.get(f"/api/games/{game_id}").json()
-    assert state["story_language"] == "pl"
-    assert state["ui_language"] == "en"
+    assert state["language"] == "en"
+    assert "Na podstawie" not in (state["source_note"] or "")
 
 
 def test_news_mode_scores_and_carries_a_content_note(client):
     game_id = client.post(
         "/api/games",
-        json={"mode": "news", "region": "pl", "story_language": "pl", "ui_language": "pl"},
+        json={"mode": "news", "region": "pl", "language": "pl"},
     ).json()["game_id"]
     state = client.get(f"/api/games/{game_id}").json()
     assert state["mode"] == "news"
@@ -338,7 +348,7 @@ def test_a_generated_news_game_is_played_and_scored(client, monkeypatch):
 
     created = client.post(
         "/api/games",
-        json={"mode": "news", "region": "world", "story_language": "en", "ui_language": "en"},
+        json={"mode": "news", "region": "world", "language": "en"},
     )
     game_id = created.json()["game_id"]
     assert _load_stream(client, game_id)[-1] == {"ready": True}
@@ -364,9 +374,78 @@ def test_an_exhausted_news_pool_is_a_friendly_error(client, monkeypatch):
     monkeypatch.setattr(settings, "llm_mode", "fake")
     res = client.post(
         "/api/games",
-        json={"mode": "news", "region": "pl", "story_language": "pl", "ui_language": "pl"},
+        json={"mode": "news", "region": "pl", "language": "pl"},
     )
     game_id = res.json()["game_id"]
     frames = _load_stream(client, game_id)
     assert frames[-1]["kind"] == "pool_empty"
     assert frames[-1]["detail"], "the message is shown to the player, so it must say something"
+
+
+def _seed_world_pool(titles: list[str]) -> None:
+    """A pool the API can serve, with vectors dedup can tell apart."""
+    import asyncio
+
+    from app.storage import get_store
+    from tests.test_news_mode import make_event
+
+    events = [make_event(title, ident=str(i)) for i, title in enumerate(titles)]
+    for i, event in enumerate(events):
+        event.embedding = [1.0 if j == i else 0.0 for j in range(len(events))]
+    asyncio.run(get_store().put_pool("world", events))
+
+
+def test_the_news_list_offers_stories_to_choose_from(client, monkeypatch):
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "llm_mode", "fake")
+    _seed_world_pool(
+        [
+            "SpaceX lands a booster on the drone ship after night launch",
+            "Brawl in the Sejm as opposition MPs storm the rostrum",
+        ]
+    )
+    stories = client.get("/api/news", params={"region": "world"}).json()
+    assert len(stories) == 2
+    assert all(s["id"] and s["title"] for s in stories)
+    assert all(s["safety_class"] != "blocked" for s in stories)
+
+
+def test_mock_mode_offers_no_list_because_it_never_reaches_the_pool(client):
+    """`picks_stories` tells the frontend this, so the menu skips the screen."""
+    assert client.get("/api/config").json()["picks_stories"] is False
+    assert client.get("/api/news", params={"region": "world"}).json() == []
+
+
+def test_the_chosen_story_is_the_one_that_gets_played(client, monkeypatch):
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "llm_mode", "fake")
+    titles = [
+        "SpaceX lands a booster on the drone ship after night launch",
+        "Brawl in the Sejm as opposition MPs storm the rostrum",
+    ]
+    _seed_world_pool(titles)
+    stories = client.get("/api/news", params={"region": "world"}).json()
+    wanted = stories[-1]
+
+    created = client.post(
+        "/api/games",
+        json={"mode": "news", "region": "world", "language": "en", "event_id": wanted["id"]},
+    )
+    game_id = created.json()["game_id"]
+    assert _load_stream(client, game_id)[-1] == {"ready": True}
+    assert client.get(f"/api/games/{game_id}").json()["mode"] == "news"
+
+
+def test_choosing_a_story_that_has_gone_is_a_friendly_error(client, monkeypatch):
+    from app.settings import settings
+
+    monkeypatch.setattr(settings, "llm_mode", "fake")
+    _seed_world_pool(["SpaceX lands a booster on the drone ship after night launch"])
+    created = client.post(
+        "/api/games",
+        json={"mode": "news", "region": "world", "language": "en", "event_id": "not-there"},
+    )
+    frames = _load_stream(client, created.json()["game_id"])
+    assert frames[-1]["kind"] == "pool_empty"

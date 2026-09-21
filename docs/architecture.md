@@ -56,6 +56,7 @@ backend/
   evals/                graded measurements — see evals.md
 
 infra/                  Dockerfile, Cloud Build, Terraform, deploy script
+scripts/dev.sh          both servers, started and stopped together
 ```
 
 ## 3. The life of a game
@@ -63,7 +64,8 @@ infra/                  Dockerfile, Cloud Build, Terraform, deploy script
 | Step | Call |
 |---|---|
 | Sign in | Firebase Google sign-in in the browser; the ID token is a bearer token on every request |
-| Create | `POST /api/games` → `{game_id}`, **immediately** |
+| Choose | News mode only: `GET /api/news?region=` → the seven stories on offer. A cold pool is collected here, in front of the choice |
+| Create | `POST /api/games` → `{game_id}`, **immediately**. News mode passes the chosen `event_id` |
 | Watch | `GET /api/games/{id}/stream` — SSE, one coarse stage at a time |
 | Load | `GET /api/games/{id}` → the full `GameState` |
 | Walk | `POST /api/games/{id}/move` → state delta |
@@ -209,10 +211,15 @@ than a silence.
 
 ## 9. Language
 
-`story_language` and `ui_language` are independent fields on the game state,
-and the story language is independent of the region. Every generation stage is
-told the language explicitly and echoes a `language` field back, which the
-orchestrator checks.
+One `language` field on the game state decides the prose and the interface
+together, and nothing else may override it - not the region, not the language
+the source articles were written in. A Polish event played in English is an
+English game. Every generation stage is told the language explicitly and echoes
+a `language` field back, which the orchestrator checks.
+
+Under `LLM_MODE=mock` the same rule is enforced by picking the recorded game on
+language first and region second, because recorded prose can be relabelled but
+not rewritten.
 
 Image prompts are always English, with a mandatory clause forbidding text,
 letters, numbers, signage and watermarks.

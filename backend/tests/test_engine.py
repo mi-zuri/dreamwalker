@@ -77,8 +77,7 @@ def make_state() -> GameState:
         game_id="g1",
         mode="news",
         region="world",
-        story_language="en",
-        ui_language="en",
+        language="en",
         style_card=STYLE,
         map=make_map(),
         player_pos=START.model_copy(),
@@ -383,5 +382,5 @@ def test_a_saved_game_carries_what_the_library_lists(game):
     assert saved.game_id == "g1"
     assert saved.title == "What The Room Kept"
     assert saved.match_score == 0.5
-    assert saved.story_language == "en"
+    assert saved.language == "en"
     assert saved.image_url == "/api/media/x.png"

@@ -3,15 +3,12 @@
   "request": {
     "mode": "idea",
     "idea": "nocny tramwaj, który nigdy nie dojeżdża do pętli",
-    "story_language": "pl",
-    "ui_language": "pl"
+    "language": "pl"
   },
   "state": {
     "game_id": "mock-idea-pl",
     "mode": "idea",
     "view": "scene",
-    "story_language": "pl",
-    "ui_language": "pl",
     "safety_class": "allowed",
     "style_card": {
       "genre": "absurdist",
@@ -130,7 +127,8 @@
     ],
     "divergence": 0,
     "turn": 0,
-    "finished": false
+    "finished": false,
+    "language": "pl"
   },
   "scenes": {
     "loc-a": {

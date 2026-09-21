@@ -69,8 +69,7 @@ def request(**overrides) -> NewGameRequest:
         **{
             "mode": "idea",
             "idea": "a lighthouse keeper finds the lamp already lit",
-            "story_language": "en",
-            "ui_language": "en",
+            "language": "en",
             **overrides,
         }
     )

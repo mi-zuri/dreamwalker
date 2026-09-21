@@ -155,7 +155,7 @@ def to_saved(state: GameState, script: GameScript, played_at: str) -> SavedGame:
         region=state.region,
         title=script.ending.title,
         played_at=played_at,
-        story_language=state.story_language,
+        language=state.language,
         match_score=script.ending.match_score,
         image_url=state.current_scene.image_url,
     )

@@ -145,7 +145,7 @@ async def write_ending(
         STAGE,
         f"{style_block(style_prompt(state.style_card))}\n\n{_transcript(plan, script)}",
         EndingDraft,
-        system=_instructions(state.story_language, state.mode, state.safety_class == "safe_mode"),
+        system=_instructions(state.language, state.mode, state.safety_class == "safe_mode"),
         temperature=0.9,
     )
     return assemble(draft, state=state, plan=plan)
@@ -166,7 +166,7 @@ def assemble(draft: EndingDraft, *, state: GameState, plan: StoryPlan) -> Ending
                 # the engine was there and the model is inferring.
                 status=recorded if recorded != "pending" else "skipped",
                 what_you_did=(item.what_you_did.strip() if item else "")
-                or _not_reached(state.story_language),
+                or _not_reached(state.language),
             )
         )
 
@@ -182,7 +182,7 @@ def assemble(draft: EndingDraft, *, state: GameState, plan: StoryPlan) -> Ending
         canon=canon_of(plan) if state.mode == "news" else [],
         player=player,
         style_card=state.style_card,
-        style_labels=style_labels(state.style_card, state.story_language),
+        style_labels=style_labels(state.style_card, state.language),
         sources=sources_of(plan),
     )
 

@@ -6,8 +6,8 @@ walkable map of it, illustrates each place, scores an ambient soundtrack live,
 and at the end shows you what your run became — and, for a news story, how far
 it drifted from what actually happened.
 
-A game takes two to ten minutes. Polish and English, with the language of the
-story and the language of the interface set separately.
+A game takes two to ten minutes. Polish or English, set by one toggle that
+decides the story and the interface both.
 
 Live at **https://dreamwalker.zur-i.com** — invite-only, because a public URL
 with a live model behind it is a public bill.

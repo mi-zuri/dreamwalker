@@ -12,7 +12,9 @@ import type {
   EndingComparison,
   GameState,
   NewGameRequest,
+  NewsStory,
   Pos,
+  Region,
   Replay,
   SavedGame,
   Stage,
@@ -77,6 +79,7 @@ export const answer = (id: string, text: string) =>
 export const setOff = (id: string) => post<GameState>(`/games/${id}/set-off`);
 export const getEnding = (id: string) => request<EndingComparison>(`/games/${id}/ending`);
 export const listGames = () => request<SavedGame[]>('/games');
+export const listNews = (region: Region) => request<NewsStory[]>(`/news?region=${region}`);
 export const getReplay = (id: string) => request<Replay>(`/games/${id}/replay`);
 
 export const forceError = (kind: AppErrorKind | null) => post<unknown>('/dev/force-error', { kind });

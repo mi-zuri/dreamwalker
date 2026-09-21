@@ -4,17 +4,17 @@ import { Starfield } from '../Starfield';
 import { Header } from '../Header';
 
 export function LibraryScreen() {
-  const { uiLanguage, saved, busy, openReplay, toMenu } = useStore();
+  const { language, saved, busy, openReplay, toMenu } = useStore();
 
   return (
     <div className={`h-screen flex flex-col p-3 overflow-hidden relative ${busy ? 'loading-state' : ''}`}>
       <Starfield />
       <Header
-        language={uiLanguage}
-        subtitle={t(uiLanguage, 'libraryTitle')}
+        language={language}
+        subtitle={t(language, 'libraryTitle')}
         right={
           <button onClick={toMenu} className="hover:text-gray-300">
-            {t(uiLanguage, 'back')}
+            {t(language, 'back')}
           </button>
         }
       />
@@ -22,7 +22,7 @@ export function LibraryScreen() {
       <div className="flex-1 overflow-y-auto min-h-0 relative z-10">
         {saved.length === 0 && !busy ? (
           <div className="ascii-box p-6 text-sm text-gray-500">
-            {t(uiLanguage, 'libraryEmpty')}
+            {t(language, 'libraryEmpty')}
           </div>
         ) : (
           <div className="space-y-2">
@@ -39,8 +39,8 @@ export function LibraryScreen() {
                   <div className="text-sm text-gray-200 truncate">{g.title}</div>
                   <div className="text-xs text-gray-600 mt-1">
                     {new Date(g.played_at).toLocaleDateString()} ·{' '}
-                    {t(uiLanguage, g.mode === 'news' ? 'modeNews' : 'modeIdea')} ·{' '}
-                    {g.story_language.toUpperCase()}
+                    {t(language, g.mode === 'news' ? 'modeNews' : 'modeIdea')} ·{' '}
+                    {g.language.toUpperCase()}
                     {g.match_score != null && (
                       <>
                         {' · '}
@@ -55,7 +55,7 @@ export function LibraryScreen() {
                   onClick={() => openReplay(g.game_id)}
                   className="ascii-btn px-3 py-2 text-xs text-gray-400 hover:text-gray-200 flex-shrink-0"
                 >
-                  {t(uiLanguage, 'replay')}
+                  {t(language, 'replay')}
                 </button>
               </div>
             ))}

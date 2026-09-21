@@ -96,8 +96,9 @@ class GameState(BaseModel):
     mode: Mode
     view: View = "scene"
     region: Region | None = None
-    story_language: Language
-    ui_language: Language
+    #: One setting for both the prose and the interface. Nothing else -
+    #: not the region, not the source article - may override it.
+    language: Language
     safety_class: SafetyClass = "allowed"
     #: Shown before play starts when `safety_class` is `safe_mode`.
     content_note: str | None = None
@@ -170,7 +171,7 @@ class SavedGame(BaseModel):
     region: Region | None = None
     title: str
     played_at: str
-    story_language: Language
+    language: Language
     match_score: float | None = None
     image_url: str | None = None
 
@@ -192,12 +193,27 @@ class Replay(BaseModel):
 # ── Requests ────────────────────────────────────────────────────────────
 
 
+class NewsStory(BaseModel):
+    """One row in the list the player picks from before a News game starts."""
+
+    id: str
+    #: The headline alone. The list has to fit on one screen without
+    #: scrolling, which a summary per row does not allow.
+    title: str
+    freshness: Literal["fresh", "aging", "stale"]
+    safety_class: SafetyClass = "allowed"
+    #: Non-empty only for `safe_mode`; the menu shows it beside the title.
+    content_note: str = ""
+
+
 class NewGameRequest(BaseModel):
     mode: Mode
     idea: str | None = None
     region: Region | None = None
-    story_language: Language
-    ui_language: Language
+    language: Language
+    #: The story the player chose from `GET /api/news`. Without it the server
+    #: picks one, which is what Idea mode and the recorded games do.
+    event_id: str | None = None
 
 
 class NewGameResponse(BaseModel):

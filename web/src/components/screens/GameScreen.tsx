@@ -12,7 +12,7 @@ import { useMusicStream } from '../../audio/useMusicStream';
 const SIDEBAR_VIEWPORT = { cols: 27, rows: 13 };
 
 export function GameScreen() {
-  const { uiLanguage, game, localPos, busy, moveTo, choose, answer, setOff, toMenu } =
+  const { language, game, localPos, busy, moveTo, choose, answer, setOff, toMenu } =
     useStore();
   const [draft, setDraft] = useState('');
   const [blocked, setBlocked] = useState(false);
@@ -34,7 +34,7 @@ export function GameScreen() {
   // once the server has confirmed the move.
   const shownPos = localPos ?? game.player_pos;
   const here = destinationAt(game.map, game.player_pos);
-  const placeName = here ? here.name : t(uiLanguage, 'inTransit');
+  const placeName = here ? here.name : t(language, 'inTransit');
   const left = game.map.destinations.length - game.resolved.length;
 
   // Browsers will not start audio until the player has interacted with the
@@ -63,19 +63,19 @@ export function GameScreen() {
         <div className="flex items-center gap-4">
           <span className="text-indigo-400 text-sm tracking-widest">DREAMWALKER</span>
           <span className="text-gray-500 text-xs">
-            {travelling ? t(uiLanguage, 'travel') : `// ${placeName}`}
+            {travelling ? t(language, 'travel') : `// ${placeName}`}
           </span>
         </div>
         <div className="flex items-center gap-4">
           <span className="text-gray-500 text-xs">
-            {t(uiLanguage, 'turn')} [{game.turn}] · {game.resolved.length}/
+            {t(language, 'turn')} [{game.turn}] · {game.resolved.length}/
             {game.map.destinations.length}
           </span>
           <button
             onClick={toMenu}
             className="ascii-btn px-2 py-1 text-xs text-gray-400 hover:text-white"
           >
-            {t(uiLanguage, 'quit')}
+            {t(language, 'quit')}
           </button>
         </div>
       </header>
@@ -83,19 +83,19 @@ export function GameScreen() {
       <div className="flex-1 grid grid-cols-[280px_1fr] gap-3 min-h-0 relative z-10">
         {/* Left rail. Travel shows where you are; a scene also keeps a minimap. */}
         <div className="flex flex-col gap-3 min-h-0">
-          <LocationImage scene={game.current_scene} language={uiLanguage} />
+          <LocationImage scene={game.current_scene} language={language} />
 
           <div className="ascii-box p-2 flex-shrink-0">
-            <div className="text-xs text-gray-500 mb-1">{t(uiLanguage, 'youAreHere')}</div>
+            <div className="text-xs text-gray-500 mb-1">{t(language, 'youAreHere')}</div>
             <div className="text-sm text-gray-200">{placeName}</div>
             <div className="text-xs text-gray-600 mt-2">
-              {left} {t(uiLanguage, 'remaining')}
+              {left} {t(language, 'remaining')}
             </div>
           </div>
 
           {!travelling && (
             <div className="ascii-box p-2 flex-shrink-0">
-              <div className="text-xs text-gray-500 mb-2">{t(uiLanguage, 'map')}</div>
+              <div className="text-xs text-gray-500 mb-2">{t(language, 'map')}</div>
               <TileMap
                 map={game.map}
                 playerPos={shownPos}
@@ -133,9 +133,9 @@ export function GameScreen() {
             </div>
             <div className="text-xs mt-2 flex-shrink-0">
               {blocked ? (
-                <span className="text-red-400">{t(uiLanguage, 'blockedHint')}</span>
+                <span className="text-red-400">{t(language, 'blockedHint')}</span>
               ) : (
-                <span className="text-gray-600">{t(uiLanguage, 'moveHint')}</span>
+                <span className="text-gray-600">{t(language, 'moveHint')}</span>
               )}
             </div>
           </div>
@@ -154,17 +154,17 @@ export function GameScreen() {
                     value={draft}
                     onChange={(e) => setDraft(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && submitAnswer()}
-                    placeholder={t(uiLanguage, 'answerPlaceholder')}
+                    placeholder={t(language, 'answerPlaceholder')}
                     className="w-full bg-transparent border border-gray-700 px-3 py-2 text-sm text-gray-300 placeholder-gray-600 focus:border-indigo-500 focus:outline-none"
                   />
                   <div className="flex items-center justify-between mt-2">
-                    <span className="text-xs text-gray-600">{t(uiLanguage, 'answerHint')}</span>
+                    <span className="text-xs text-gray-600">{t(language, 'answerHint')}</span>
                     <button
                       onClick={submitAnswer}
                       disabled={!draft.trim()}
                       className="ascii-btn px-3 py-1 text-xs text-gray-300"
                     >
-                      {t(uiLanguage, 'submit')}
+                      {t(language, 'submit')}
                     </button>
                   </div>
                 </div>
@@ -186,7 +186,7 @@ export function GameScreen() {
                   onClick={withAudio(setOff)}
                   className="ascii-btn w-full p-3 text-sm text-gray-200 border-indigo-800 hover:border-indigo-600"
                 >
-                  {t(uiLanguage, 'setOff')}
+                  {t(language, 'setOff')}
                 </button>
               )}
             </div>

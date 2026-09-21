@@ -16,7 +16,8 @@ actually happened.
 
 | | |
 |---|---|
-| **Menu** | Type an idea, or leave the box empty and pick a region. Set the interface language and the story language separately. |
+| **Menu** | Type an idea, or leave the box empty and pick a region. One toggle sets the language. |
+| **Stories** | News mode only. Seven real stories, the most important first; pick one. |
 | **Loading** | 6–10 s. A vague stage label and the `z / zz / zzz` loader. |
 | **Content note** | Safe-mode runs only. One sentence about the subject, with a way to back out. |
 | **Travel** | The ASCII map. Walk to a lettered destination. |
@@ -31,7 +32,7 @@ questions. Those numbers are the two-to-ten-minute budget.
 
 | | **Idea** | **News** |
 |---|---|---|
-| Brief | the sentence you typed | a real recent event |
+| Brief | the sentence you typed | a real recent event, chosen from seven |
 | Region | — | Polish or World |
 | Canon | none | a beat graph built from the sources |
 | Ending | a recap of what your story became | recap **plus** what happened, sources, match score |
@@ -86,9 +87,9 @@ card is not a problem worth making one player's variety depend on another's.
 
 ## Language
 
-Interface language and story language are set separately, and the story
-language is independent of the region: a Polish player can play World news in
-Polish. Image prompts are always written in English, with a clause forbidding
+One setting, for the story and the interface both. Nothing else touches it:
+a Polish player reads World news in Polish, and a Polish event played with the
+toggle on EN is an English game from the menu to the ending. Image prompts are always written in English, with a clause forbidding
 text on the picture, because letters on an image are the one failure mode
 nothing downstream could fix.
 

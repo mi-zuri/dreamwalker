@@ -30,7 +30,7 @@ bun run dev:web
 Open http://localhost:5174 — sign-in is faked, everything runs on mock data.
 
 Try: leave the idea box empty and press BEGIN for a news run; type something in
-it for an idea run; switch `story language` and `interface` independently; click
+it for an idea run; switch `language`; click
 `[dev]` bottom-right to force error screens or jump between screens.
 
 To run the API alongside it (health check only for now):

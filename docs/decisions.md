@@ -603,6 +603,46 @@ a procedural noise blob would misrepresent the product it is documenting.
 
 ---
 
+## After play testing
+
+**One language setting, not two.** Q6 of the plan split `story_language` from
+`ui_language` on the grounds that a Polish player might want an English story.
+Nobody wanted that. What they got instead was a menu with two toggles that
+looked like it might disagree with itself, and in mock mode it did: asking for
+a Polish region in English fell back to the recorded Polish run, because
+`pick_fixture` matched region and language together and took the first game in
+the list when both could not be had. The two fields are now one `language`,
+and mock replay filters on it before it looks at region — recorded prose can
+be relabelled, not rewritten. The language eval lost the crossed-settings
+cases and gained the case that actually broke: an event whose region, articles
+and dossier are all Polish, played in English.
+
+**The player picks the story; the menu stopped explaining itself.** News mode
+used to draw an event weighted-randomly and go. Seven stories are now listed,
+most important first, and the player chooses. Two consequences worth writing
+down. The list is ordered by `importance`, not `rank` - `rank` weights
+playability highest, which is the right question when the machine picks and
+the wrong one when a person is asking which of these they want to live
+through. And the wait for a cold pool moved in front of the choice, because
+that is the only place it can be once the choice is theirs. The idea box lost
+its label and its hint; a box that says `whisper it to the stars...` and a
+BEGIN button under it did not need a third line explaining that leaving it
+empty does the other thing.
+
+Mock mode does not show the list. It replays four recorded games and never
+reaches a pool, so there would be nothing true to list; `/api/config` carries
+`picks_stories: false` and the menu goes straight to the recording. `fake`
+collects real feeds against `FakeLLM`, so the picker is exercisable for free.
+
+**A second click changes direction; it does not start a second walk.**
+Click-to-move schedules one timer per tile. Clicking again mid-walk used to
+leave the first queue running, so two routes stepped the player alternately
+along paths computed from positions they had already left — on screen, an `@`
+in several places at once. The timers are now held and cancelled, by the next
+click and by a keypress.
+
+---
+
 ## Still needed
 
 **The actual Lyria RealTime cost.** At a 10 PLN budget this is no longer a

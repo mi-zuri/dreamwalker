@@ -32,6 +32,8 @@ from app.models.game import (
     MoveRequest,
     NewGameRequest,
     NewGameResponse,
+    NewsStory,
+    Region,
     Replay,
     SavedGame,
     StageEvent,
@@ -127,9 +129,16 @@ class FirebaseConfig(BaseModel):
     messaging_sender_id: str
 
 
+def _picks_stories() -> bool:
+    return settings.llm_mode != "mock"
+
+
 class ClientConfig(BaseModel):
     auth_mode: str
     firebase: FirebaseConfig | None
+    #: Whether News mode offers a list of stories to choose from. Mock replays
+    #: recorded games and never reaches the pool, so there is nothing to list.
+    picks_stories: bool
 
 
 @app.get("/api/config")
@@ -141,9 +150,12 @@ def client_config() -> ClientConfig:
     of which project it belongs to.
     """
     if settings.auth_mode == "dev" or not settings.firebase_api_key:
-        return ClientConfig(auth_mode=settings.auth_mode, firebase=None)
+        return ClientConfig(
+            auth_mode=settings.auth_mode, firebase=None, picks_stories=_picks_stories()
+        )
     return ClientConfig(
         auth_mode=settings.auth_mode,
+        picks_stories=_picks_stories(),
         firebase=FirebaseConfig(
             api_key=settings.firebase_api_key,
             auth_domain=settings.firebase_auth_domain,
@@ -186,6 +198,32 @@ async def stream(game_id: str, user: CurrentUser, st: GameStore = Store) -> Even
     if orchestrator.job_for(game_id) is None:
         await _load(st, user.uid, game_id)
     return EventSourceResponse(orchestrator.stream_progress(game_id))
+
+
+@app.get("/api/news", responses={"4XX": {"model": ApiError}})
+async def news_stories(region: Region, user: CurrentUser, st: GameStore = Store) -> list[NewsStory]:
+    """The stories on offer in a region, most important first.
+
+    This can be slow: a cold pool is collected here, which is six feeds, a
+    clustering pass and a scoring pass. That wait used to sit behind the
+    loading screen of a game the player had not chosen; now it sits in front
+    of the choice, which is the only place it can be when the choice is theirs.
+    """
+    _raise_if_forced()
+    if not _picks_stories():
+        return []
+    await orchestrator.check_budget(st)
+
+    from app.llm import make_llm
+    from app.pipeline import news_game
+
+    llm = make_llm()
+    try:
+        return await news_game.shortlist(llm, st, region, user.uid)
+    finally:
+        # Ingest is the one thing here that can spend, and it spends whether
+        # or not the player goes on to start a game.
+        await st.add_spend(llm.usage.usd)
 
 
 @app.get("/api/games")

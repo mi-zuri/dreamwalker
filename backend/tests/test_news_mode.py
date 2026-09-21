@@ -15,6 +15,7 @@ import pytest
 from app.errors import AppError
 from app.llm.fake import FakeLLM
 from app.models.game import NewGameRequest
+from app.news import pool
 from app.news.dedup import record
 from app.news.models import Article, Event, Scores, now
 from app.pipeline import live, news_game
@@ -82,8 +83,7 @@ def request(**overrides) -> NewGameRequest:
         **{
             "mode": "news",
             "region": "world",
-            "story_language": "en",
-            "ui_language": "en",
+            "language": "en",
             **overrides,
         }
     )
@@ -391,3 +391,76 @@ async def test_an_empty_pool_leaves_no_choice_but_to_wait():
     finally:
         ingest.refresh = original
         settings.news_ingest_enabled = False
+
+
+# ── choosing the story ──────────────────────────────────────────────────
+
+
+def _scored(title: str, *, importance: float, playability: float = 0.8, **kw) -> Event:
+    event = make_event(title, **kw)
+    event.scores = Scores(
+        importance=importance, interest=0.5, playability=playability, roles=["witness"]
+    )
+    return event
+
+
+def test_the_shortlist_is_ordered_by_importance_not_rank():
+    """The player is choosing, so the useful order is what mattered most.
+
+    `rank` weights playability highest, which is right when the machine picks
+    and wrong here - it would put a very playable minor story above the day's
+    biggest one.
+    """
+    events = [
+        _scored("A minor story that happens to play well", importance=0.2, playability=1.0),
+        _scored("The largest thing that happened today", importance=0.95, playability=0.5),
+        _scored("Something in between", importance=0.6),
+    ]
+    titles = [e.title for e in pool.shortlist(events, [])]
+    assert titles[0] == "The largest thing that happened today"
+    assert titles[1] == "Something in between"
+
+
+def test_the_shortlist_hides_what_is_unplayable_or_already_played():
+    big = _scored("A story worth playing", importance=0.9)
+    unplayable = _scored("Important but nobody can act in it", importance=0.99, playability=0.1)
+    played = _scored("Already seen this one", importance=0.95)
+    # `make_event` hands out one shared vector, which dedup reads as "the same
+    # story"; orthogonal ones are what make these three distinguishable.
+    for index, event in enumerate((big, unplayable, played)):
+        event.embedding = [1.0 if i == index else 0.0 for i in range(3)]
+
+    offered = pool.shortlist([big, unplayable, played], [record(played)])
+    assert [e.title for e in offered] == ["A story worth playing"]
+
+
+def test_the_shortlist_is_capped():
+    events = [_scored(f"Story number {i}", importance=i / 100) for i in range(30)]
+    assert len(pool.shortlist(events, [])) == pool.SHORTLIST
+
+
+@pytest.mark.anyio
+async def test_a_chosen_event_is_the_one_played():
+    store = MemoryStore()
+    wanted = make_event("Divers reach the wreck and recover the bell", ident="wanted")
+    await pooled(store, make_event("Something else entirely", ident="other"), wanted)
+
+    picked = await news_game.pick(FakeLLM(), store, "world", "p1", event_id="wanted")
+    assert picked is not None and picked.id == "wanted"
+
+
+@pytest.mark.anyio
+async def test_a_chosen_event_that_has_since_expired_reads_as_an_empty_pool():
+    """The list and the click are separate requests; a refresh can land between."""
+    store = MemoryStore()
+    await pooled(store, make_event("Still here", ident="here"))
+    assert await news_game.pick(FakeLLM(), store, "world", "p1", event_id="gone") is None
+
+
+@pytest.mark.anyio
+async def test_choosing_never_offers_a_blocked_event():
+    store = MemoryStore()
+    blocked = make_event("Search continues for missing girl last seen near the canal")
+    blocked.scores = Scores(importance=0.9, playability=0.9, safety_class="blocked")
+    await pooled(store, blocked)
+    assert await news_game.shortlist(FakeLLM(), store, "world", "p1") == []

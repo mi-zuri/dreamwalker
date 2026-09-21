@@ -35,7 +35,7 @@ async def build(
     store: GameStore,
     progress: Progress,
 ) -> live.OpenedGame:
-    idea = (req.idea or "").strip() or DEFAULT_IDEA[req.story_language]
+    idea = (req.idea or "").strip() or DEFAULT_IDEA[req.language]
     style = sample_style_card(recent=await store.recent_style_cards(uid, HISTORY_DEPTH))
 
     return await live.open_game(
@@ -44,7 +44,7 @@ async def build(
         game_id=game_id,
         req=req,
         style=style,
-        brief=live.idea_brief(idea, req.story_language),
+        brief=live.idea_brief(idea, req.language),
         progress=progress,
         mode="idea",
     )

@@ -7,6 +7,7 @@ import type {
   EndingComparison,
   GameState,
   Language,
+  NewsStory,
   Pos,
   Region,
   Replay,
@@ -17,6 +18,7 @@ import type {
 export type Screen =
   | 'login'
   | 'menu'
+  | 'stories'
   | 'contentNote'
   | 'loading'
   | 'game'
@@ -42,11 +44,11 @@ interface AppStore {
   signingIn: boolean;
   restoring: boolean;
 
-  uiLanguage: Language;
-  storyLanguage: Language;
+  language: Language;
   idea: string;
   region: Region;
 
+  stories: NewsStory[];
   stage: Stage | null;
   game: GameState | null;
   /** Where the player looks like they are, ahead of the server confirming. */
@@ -58,15 +60,15 @@ interface AppStore {
   error: AppError | null;
   busy: boolean;
 
-  setUiLanguage: (l: Language) => void;
-  setStoryLanguage: (l: Language) => void;
+  setLanguage: (l: Language) => void;
   setIdea: (v: string) => void;
   setRegion: (r: Region) => void;
 
   restoreSession: () => Promise<void>;
+  begin: () => Promise<void>;
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
-  start: () => Promise<void>;
+  start: (eventId?: string) => Promise<void>;
   acceptContentNote: () => void;
   declineContentNote: () => void;
   moveTo: (pos: Pos) => void;
@@ -94,11 +96,11 @@ export const useStore = create<AppStore>((set, get) => ({
   signingIn: false,
   restoring: true,
 
-  uiLanguage: 'en',
-  storyLanguage: 'en',
+  language: 'en',
   idea: '',
   region: 'world',
 
+  stories: [],
   stage: null,
   game: null,
   localPos: null,
@@ -109,8 +111,7 @@ export const useStore = create<AppStore>((set, get) => ({
   error: null,
   busy: false,
 
-  setUiLanguage: (uiLanguage) => set({ uiLanguage }),
-  setStoryLanguage: (storyLanguage) => set({ storyLanguage }),
+  setLanguage: (language) => set({ language }),
   setIdea: (idea) => set({ idea }),
   setRegion: (region) => set({ region }),
 
@@ -144,15 +145,30 @@ export const useStore = create<AppStore>((set, get) => ({
     set({ user: null, screen: 'login', game: null, ending: null, localPos: null });
   },
 
-  start: async () => {
-    const { idea, region, storyLanguage, uiLanguage } = get();
+  /**
+   * What BEGIN does. An idea goes straight to generation; news goes to the
+   * list first, because which story to play is the player's choice and the
+   * pool has to be in front of them before they can make it.
+   */
+  begin: async () => {
+    if (get().idea.trim() || !auth.picksStories()) return get().start();
+    set({ screen: 'stories', stories: [], busy: true, error: null });
+    try {
+      set({ stories: await api.listNews(get().region), busy: false });
+    } catch (e) {
+      set({ error: toAppError(e), screen: 'error', busy: false });
+    }
+  },
+
+  start: async (eventId) => {
+    const { idea, region, language } = get();
     const trimmed = idea.trim();
     const request = {
       mode: (trimmed ? 'idea' : 'news') as 'idea' | 'news',
       idea: trimmed || undefined,
       region: trimmed ? undefined : region,
-      story_language: storyLanguage,
-      ui_language: uiLanguage,
+      language,
+      event_id: eventId,
     };
 
     set({ screen: 'loading', stage: 'story', error: null, ending: null, localPos: null });
@@ -260,6 +276,7 @@ export const useStore = create<AppStore>((set, get) => ({
   toMenu: () =>
     set({
       screen: 'menu',
+      stories: [],
       game: null,
       localPos: null,
       ending: null,

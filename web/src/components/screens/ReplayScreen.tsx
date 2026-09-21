@@ -5,7 +5,7 @@ import { Header } from '../Header';
 import { HighlightedText } from '../HighlightedText';
 
 export function ReplayScreen() {
-  const { uiLanguage, replay, replayIndex, setReplayIndex, openLibrary } = useStore();
+  const { language, replay, replayIndex, setReplayIndex, openLibrary } = useStore();
   if (!replay) return null;
 
   const turn = replay.turns[replayIndex];
@@ -16,11 +16,11 @@ export function ReplayScreen() {
     <div className="h-screen flex flex-col p-3 overflow-hidden relative">
       <Starfield />
       <Header
-        language={uiLanguage}
-        subtitle={t(uiLanguage, 'replayTitle')}
+        language={language}
+        subtitle={t(language, 'replayTitle')}
         right={
           <button onClick={openLibrary} className="hover:text-gray-300">
-            {t(uiLanguage, 'back')}
+            {t(language, 'back')}
           </button>
         }
       />
@@ -34,13 +34,13 @@ export function ReplayScreen() {
               className="w-full h-auto max-h-44 object-contain pixel-img opacity-90"
             />
           ) : (
-            <div className="text-gray-600 text-xs">{t(uiLanguage, 'noImage')}</div>
+            <div className="text-gray-600 text-xs">{t(language, 'noImage')}</div>
           )}
         </div>
 
         <div className="ascii-box p-3 flex flex-col min-h-0 overflow-y-auto">
           <div className="text-xs text-gray-500 mb-3">
-            {replay.title} · {t(uiLanguage, 'turn')} {turn.turn}/{replay.turns.length}
+            {replay.title} · {t(language, 'turn')} {turn.turn}/{replay.turns.length}
           </div>
           <div className="text-gray-200 text-sm leading-relaxed mb-4">
             <HighlightedText text={turn.scene.text} />
@@ -53,7 +53,7 @@ export function ReplayScreen() {
           )}
           {turn.answer && (
             <div className="ascii-box p-2 border-teal-800">
-              <div className="text-xs text-gray-600 mb-1">{t(uiLanguage, 'answerHint')}</div>
+              <div className="text-xs text-gray-600 mb-1">{t(language, 'answerHint')}</div>
               <span className="text-sm text-teal-300 italic">{turn.answer}</span>
             </div>
           )}
@@ -66,14 +66,14 @@ export function ReplayScreen() {
           disabled={atStart}
           className="ascii-btn px-4 py-2 text-xs text-gray-400"
         >
-          {t(uiLanguage, 'prev')}
+          {t(language, 'prev')}
         </button>
         <button
           onClick={() => setReplayIndex(replayIndex + 1)}
           disabled={atEnd}
           className="ascii-btn px-4 py-2 text-xs text-gray-400"
         >
-          {t(uiLanguage, 'next')}
+          {t(language, 'next')}
         </button>
       </div>
     </div>

@@ -5,7 +5,7 @@ import { Starfield } from '../Starfield';
 
 /** Vague stage labels only - the pipeline's real stage list is not exposed. */
 export function LoadingScreen() {
-  const { uiLanguage, stage } = useStore();
+  const { language, stage } = useStore();
   const [dots, setDots] = useState(1);
 
   useEffect(() => {
@@ -28,7 +28,7 @@ export function LoadingScreen() {
           {'z'.repeat(dots)}
         </div>
         <div className="text-gray-500 text-xs">
-          {stage ? t(uiLanguage, STAGE_KEYS[stage]) : ''}
+          {stage ? t(language, STAGE_KEYS[stage]) : ''}
         </div>
       </div>
     </div>

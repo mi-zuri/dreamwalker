@@ -6,9 +6,11 @@ leaves yesterday's pool exactly where it was. That is the property that makes
 refreshing on demand safe: the worst outcome of a bad refresh is a slightly
 staler pool, never an empty one.
 
-Selection is weighted-random over the top candidates rather than "take the
-best". Always serving the highest-ranked event would mean every player in a
-day plays the same thing, and would make the pool's depth pointless.
+Two ways out of it. `shortlist` is what the player chooses from, ordered by
+importance. `choose` is the machine picking one for them - weighted-random
+over the top candidates rather than "take the best", because always serving
+the highest-ranked event would mean every player in a day plays the same
+thing, and would make the pool's depth pointless.
 """
 
 import logging
@@ -76,6 +78,32 @@ def _category(event: Event) -> str:
     proxy for "more of the same".
     """
     return f"{event.scores.roles[0] if event.scores.roles else '-'}"
+
+
+#: How many stories the player is offered to choose between.
+SHORTLIST = 7
+
+
+def shortlist(
+    events: list[Event],
+    history: list[PlayedEvent],
+    *,
+    limit: int = SHORTLIST,
+) -> list[Event]:
+    """The most important playable events this player has not already seen.
+
+    Ordered by `importance` rather than by `rank`. `rank` exists to answer
+    "which of these makes the best game", which is the right question when the
+    machine picks; the player is picking now, and the useful order for them is
+    what actually mattered. Playability still filters - an event nobody can
+    act inside is not a game however large it was - it just stops deciding the
+    order. Ties fall back to rank.
+    """
+    return sorted(
+        unplayed(playable(events), history),
+        key=lambda e: (e.scores.importance, e.scores.rank),
+        reverse=True,
+    )[:limit]
 
 
 def choose(

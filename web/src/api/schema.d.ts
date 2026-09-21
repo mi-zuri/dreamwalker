@@ -107,6 +107,31 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/news": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * News Stories
+         * @description The stories on offer in a region, most important first.
+         *
+         *     This can be slow: a cold pool is collected here, which is six feeds, a
+         *     clustering pass and a scoring pass. That wait used to sit behind the
+         *     loading screen of a game the player had not chosen; now it sits in front
+         *     of the choice, which is the only place it can be when the choice is theirs.
+         */
+        get: operations["news_stories_api_news_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/games/{game_id}": {
         parameters: {
             query?: never;
@@ -286,6 +311,8 @@ export interface components {
             /** Auth Mode */
             auth_mode: string;
             firebase: components["schemas"]["FirebaseConfig"] | null;
+            /** Picks Stories */
+            picks_stories: boolean;
         };
         /** Destination */
         Destination: {
@@ -381,15 +408,10 @@ export interface components {
             /** Region */
             region?: ("pl" | "world") | null;
             /**
-             * Story Language
+             * Language
              * @enum {string}
              */
-            story_language: "pl" | "en";
-            /**
-             * Ui Language
-             * @enum {string}
-             */
-            ui_language: "pl" | "en";
+            language: "pl" | "en";
             /**
              * Safety Class
              * @default allowed
@@ -479,20 +501,43 @@ export interface components {
             /** Region */
             region?: ("pl" | "world") | null;
             /**
-             * Story Language
+             * Language
              * @enum {string}
              */
-            story_language: "pl" | "en";
-            /**
-             * Ui Language
-             * @enum {string}
-             */
-            ui_language: "pl" | "en";
+            language: "pl" | "en";
+            /** Event Id */
+            event_id?: string | null;
         };
         /** NewGameResponse */
         NewGameResponse: {
             /** Game Id */
             game_id: string;
+        };
+        /**
+         * NewsStory
+         * @description One row in the list the player picks from before a News game starts.
+         */
+        NewsStory: {
+            /** Id */
+            id: string;
+            /** Title */
+            title: string;
+            /**
+             * Freshness
+             * @enum {string}
+             */
+            freshness: "fresh" | "aging" | "stale";
+            /**
+             * Safety Class
+             * @default allowed
+             * @enum {string}
+             */
+            safety_class: "allowed" | "safe_mode" | "blocked";
+            /**
+             * Content Note
+             * @default
+             */
+            content_note: string;
         };
         /** OpenQuestion */
         OpenQuestion: {
@@ -556,10 +601,10 @@ export interface components {
             /** Played At */
             played_at: string;
             /**
-             * Story Language
+             * Language
              * @enum {string}
              */
-            story_language: "pl" | "en";
+            language: "pl" | "en";
             /** Match Score */
             match_score?: number | null;
             /** Image Url */
@@ -794,6 +839,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    news_stories_api_news_get: {
+        parameters: {
+            query: {
+                region: "pl" | "world";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NewsStory"][];
+                };
+            };
+            /** @description Client Error */
+            "4XX": {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiError"];
                 };
             };
         };

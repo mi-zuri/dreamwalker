@@ -101,13 +101,14 @@ and privacy. That is a defensible reading and the eval reports it as one.
 
 ### `language`
 
-Six combinations — both modes, both story languages, and the two settings
-crossed, because `story_language` and `ui_language` are independent. For each
+Six combinations — both modes in both languages, plus each language built
+from news written in the other, which is where the setting has the most pulling
+against it: the region, the articles and the dossier. For each
 it builds a game, plays it to the end and checks **every** string a player
 reads: the premise, each scene, each choice, each open question, the ending
-title and summary, each player beat, and every style label. Then the two
-places where the story language deliberately does not apply: image prompts,
-which are always English, and the no-text rule attached to each one.
+title and summary, each player beat, and every style label. Then the one
+place the player's language deliberately does not apply: image prompts, which
+are always English, and the no-text rule attached to each one.
 
 Language is detected with disjoint function-word lists rather than a
 language-id dependency; two languages, both known in advance, is not a

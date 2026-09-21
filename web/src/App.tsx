@@ -2,6 +2,7 @@ import { useEffect } from 'react';
 import { useStore } from './store';
 import { LoginScreen } from './components/screens/LoginScreen';
 import { MainMenu } from './components/screens/MainMenu';
+import { StoryPicker } from './components/screens/StoryPicker';
 import { ContentNote } from './components/screens/ContentNote';
 import { LoadingScreen } from './components/screens/LoadingScreen';
 import { GameScreen } from './components/screens/GameScreen';
@@ -15,6 +16,7 @@ import { Starfield } from './components/Starfield';
 const SCREENS = {
   login: LoginScreen,
   menu: MainMenu,
+  stories: StoryPicker,
   contentNote: ContentNote,
   loading: LoadingScreen,
   game: GameScreen,

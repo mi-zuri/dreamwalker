@@ -23,7 +23,7 @@ from collections.abc import Awaitable, Callable
 
 from app.errors import AppError
 from app.llm.base import LLM
-from app.models.game import Language, NewGameRequest, Region, Stage
+from app.models.game import Language, NewGameRequest, NewsStory, Region, Stage
 from app.models.plan import Beat
 from app.news import ingest, pool
 from app.news.dedup import record
@@ -40,7 +40,7 @@ log = logging.getLogger(__name__)
 
 Progress = Callable[[Stage], Awaitable[None]]
 
-#: Shown for the whole run, in the player's UI language.
+#: Shown for the whole run, in the player's language.
 SOURCE_NOTE: dict[Language, str] = {
     "pl": "Na podstawie prawdziwych wydarzeń. Fabuła jest zmyślona.",
     "en": "Based on real events. The story around them is invented.",
@@ -65,9 +65,9 @@ async def build(
 ) -> live.OpenedGame:
     region: Region = req.region or "world"
 
-    event = await pick(llm, store, region, uid)
+    event = await pick(llm, store, region, uid, event_id=req.event_id)
     if event is None:
-        raise AppError("pool_empty", EMPTY[req.ui_language])
+        raise AppError("pool_empty", EMPTY[req.language])
 
     await enrich(llm, event, assets)
     await store.put_event(region, event)
@@ -92,7 +92,7 @@ async def build(
         progress=progress,
         safety_class=safety,
         content_note=event.scores.content_note,
-        source_note=SOURCE_NOTE[req.story_language],
+        source_note=SOURCE_NOTE[req.language],
         mode="news",
         canon=canon_beats(event),
         opening_image=best_for_opening(event.photos),
@@ -105,14 +105,47 @@ async def build(
     return opened
 
 
-async def pick(llm: LLM, store: GameStore, region: Region, uid: str) -> Event | None:
+async def shortlist(llm: LLM, store: GameStore, region: Region, uid: str) -> list[NewsStory]:
+    """The stories to offer this player, most important first.
+
+    This is where the wait now lives. A player who chooses their own story has
+    to be shown the pool before they choose, so a cold pool is collected here
+    rather than behind a loading screen after the fact - and a warm one, which
+    is the normal case, returns immediately.
+    """
+    await ingest.ensure_pool(llm, store, region)
+    events = pool.shortlist(await store.get_pool(region), await store.played_events(uid))
+    return [
+        NewsStory(
+            id=event.id,
+            title=event.title,
+            freshness=event.freshness(),
+            safety_class=event.scores.safety_class,
+            content_note=event.scores.content_note,
+        )
+        for event in events
+    ]
+
+
+async def pick(
+    llm: LLM, store: GameStore, region: Region, uid: str, *, event_id: str | None = None
+) -> Event | None:
     """Draw something this player has not seen, refreshing the pool if needed.
 
     A refresh takes most of a minute - collecting six feeds, clustering two
     hundred articles and scoring eighty events - and putting that in front of
     the player is only justified when there is nothing to play without it. So
     a pool that can still serve is refreshed *behind* them instead.
+
+    With an `event_id` none of that applies: the player has just been shown
+    the pool and chosen from it, so the only question is whether their choice
+    is still there. If a refresh expired it between the list and the click,
+    that reads as an empty pool and they are sent back to choose again.
     """
+    if event_id is not None:
+        chosen = next((e for e in await store.get_pool(region) if e.id == event_id), None)
+        return chosen if chosen is not None and chosen.playable else None
+
     status = await store.pool_status(region)
     if status.playable and ingest.wants_refresh(status):
         _refresh_behind(store, region)

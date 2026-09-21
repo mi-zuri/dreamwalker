@@ -26,7 +26,7 @@ function StatusTag({ status, language }: { status: BeatStatus; language: Languag
 }
 
 export function EndingScreen() {
-  const { uiLanguage, ending, toMenu, openLibrary } = useStore();
+  const { language, ending, toMenu, openLibrary } = useStore();
   if (!ending) return null;
 
   const isNews = ending.mode === 'news';
@@ -37,11 +37,11 @@ export function EndingScreen() {
 
       <header className="ascii-box p-2 mb-3 flex justify-between items-center relative z-10">
         <span className="text-indigo-400 text-sm tracking-widest">
-          {t(uiLanguage, 'endingTitle')}
+          {t(language, 'endingTitle')}
         </span>
         {ending.match_score != null && (
           <span className="text-xs text-gray-500">
-            {t(uiLanguage, 'matchScore')}:{' '}
+            {t(language, 'matchScore')}:{' '}
             <span className="text-indigo-400">{Math.round(ending.match_score * 100)}%</span>
           </span>
         )}
@@ -57,7 +57,7 @@ export function EndingScreen() {
           {isNews && (
             <div className="ascii-box p-3">
               <div className="text-xs text-gray-500 mb-3">
-                {t(uiLanguage, 'whatHappened')}
+                {t(language, 'whatHappened')}
               </div>
               <div className="space-y-3">
                 {ending.canon.map((beat) => (
@@ -74,12 +74,12 @@ export function EndingScreen() {
 
           <div className="ascii-box p-3">
             <div className="text-xs text-gray-500 mb-3">
-              {t(uiLanguage, isNews ? 'whatYouDid' : 'yourStory')}
+              {t(language, isNews ? 'whatYouDid' : 'yourStory')}
             </div>
             <div className="space-y-3">
               {ending.player.map((beat) => (
                 <div key={beat.beat_id}>
-                  <StatusTag status={beat.status} language={uiLanguage} />
+                  <StatusTag status={beat.status} language={language} />
                   <div className="text-xs text-gray-400 mt-1 leading-relaxed">
                     {beat.what_you_did}
                   </div>
@@ -107,7 +107,7 @@ export function EndingScreen() {
 
         {ending.sources.length > 0 && (
           <div className="ascii-box p-3">
-            <div className="text-xs text-gray-500 mb-2">{t(uiLanguage, 'sources')}</div>
+            <div className="text-xs text-gray-500 mb-2">{t(language, 'sources')}</div>
             <div className="space-y-1">
               {ending.sources.map((s) => (
                 <a
@@ -130,13 +130,13 @@ export function EndingScreen() {
           onClick={toMenu}
           className="ascii-btn flex-1 p-3 text-sm text-gray-200 border-indigo-800 hover:border-indigo-600"
         >
-          {t(uiLanguage, 'playAgain')}
+          {t(language, 'playAgain')}
         </button>
         <button
           onClick={openLibrary}
           className="ascii-btn px-4 py-3 text-xs text-gray-400 hover:text-gray-200"
         >
-          {t(uiLanguage, 'toLibrary')}
+          {t(language, 'toLibrary')}
         </button>
       </div>
     </div>
