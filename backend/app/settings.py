@@ -1,5 +1,6 @@
 from typing import Literal
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -100,6 +101,30 @@ class Settings(BaseSettings):
     static_dir: str = ""
 
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:5174"]
+
+    @model_validator(mode="after")
+    def _firebase_config_is_complete(self) -> "Settings":
+        """In firebase mode the backend must be able to name the project to sign into.
+
+        Without this the two halves disagree silently: `/api/config` sends no
+        Firebase block, the frontend reads that as dev mode and stops sending a
+        token, and every call comes back "missing bearer token" - a 401 that
+        blames the browser for an unset variable on the server.
+        """
+        if self.auth_mode != "firebase":
+            return self
+        required = {
+            "GCP_PROJECT": self.gcp_project,
+            "FIREBASE_API_KEY": self.firebase_api_key,
+            "FIREBASE_AUTH_DOMAIN": self.firebase_auth_domain,
+            "FIREBASE_APP_ID": self.firebase_app_id,
+        }
+        missing = [name for name, value in required.items() if not value]
+        if missing:
+            raise ValueError(
+                f"AUTH_MODE=firebase needs {', '.join(missing)}; set them or use AUTH_MODE=dev"
+            )
+        return self
 
 
 settings = Settings()

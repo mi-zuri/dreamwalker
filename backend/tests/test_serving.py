@@ -5,8 +5,9 @@ and serves the frontend that calls it. These are the seams that creates.
 """
 
 import pytest
+from pydantic import ValidationError
 
-from app.settings import settings
+from app.settings import Settings, settings
 
 
 @pytest.fixture
@@ -56,10 +57,31 @@ def test_config_needs_no_token(client, firebase_mode):
     assert client.get("/api/config").status_code == 200
 
 
-def test_a_half_configured_backend_stays_in_dev_mode(client):
-    """Missing config is not a reason to send the browser at a broken login."""
-    settings.auth_mode = "firebase"
-    try:
-        assert client.get("/api/config").json()["firebase"] is None
-    finally:
-        settings.auth_mode = "dev"
+def test_a_half_configured_backend_refuses_to_start():
+    """The halves cannot disagree, because the mismatch is a boot failure.
+
+    `AUTH_MODE=firebase` with nothing to sign into used to leave `/api/config`
+    quietly answering as though this install had no accounts: the frontend
+    then sent no token and every call came back "missing bearer token", a 401
+    that blames the browser for an unset variable on the server.
+    """
+    with pytest.raises(ValidationError, match="FIREBASE_API_KEY"):
+        Settings(
+            _env_file=None,
+            auth_mode="firebase",
+            gcp_project="",
+            firebase_api_key="",
+            firebase_auth_domain="",
+            firebase_app_id="",
+        )
+
+
+def test_a_fully_configured_backend_starts():
+    Settings(
+        _env_file=None,
+        auth_mode="firebase",
+        gcp_project="dreamwalker-test",
+        firebase_api_key="test-key",
+        firebase_auth_domain="dreamwalker-test.firebaseapp.com",
+        firebase_app_id="1:1:web:1",
+    )
