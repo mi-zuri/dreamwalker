@@ -1,0 +1,38 @@
+# Copy to terraform.tfvars and fill in. That file is gitignored: it carries
+# the invite list, which is the only cost control standing between this
+# project and a stranger's imagination.
+
+project_id    = "mi-zuri-dreamwalker-app"
+region        = "europe-west1"
+assets_bucket = "mi-zuri-dreamwalker-app-assets"
+
+# Anyone not on this list is refused at the door, before any generation runs.
+allowed_emails = ["you@example.com"]
+
+alert_email     = "you@example.com"
+billing_account = "" # e.g. "01C6F0-..."; empty skips the budget alert
+
+# What the app refuses to spend past, checked before every generation. USD
+# because that is what the models are priced in.
+monthly_budget_usd = 2.40
+
+# The billing alert, which must use the billing account's own currency - any
+# other is rejected as an invalid argument, with no hint as to which one.
+billing_budget = {
+  currency = "PLN"
+  amount   = 10
+}
+
+github_repo = "owner/dreamwalker"
+
+# Public values from the Firebase console: they name the project and
+# authorise nothing. Served to the browser at runtime from /api/config.
+firebase_web = {
+  api_key             = ""
+  auth_domain         = ""
+  app_id              = ""
+  messaging_sender_id = ""
+  storage_bucket      = ""
+}
+
+# `image` is passed by infra/scripts/deploy.sh, not set here.

@@ -1,0 +1,65 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Two rollouts at once would race for the same revision; queue them instead.
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  id-token: write # the OIDC token federation exchanges for a Google one
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - uses: actions/checkout@v4
+
+      # No service-account key anywhere: GitHub's own OIDC token is exchanged
+      # for a short-lived Google credential. See infra/terraform/cicd.tf.
+      - uses: google-github-actions/auth@v2
+        with:
+          workload_identity_provider: ${{ vars.WORKLOAD_IDENTITY_PROVIDER }}
+          service_account: ${{ vars.DEPLOY_SERVICE_ACCOUNT }}
+
+      - uses: google-github-actions/setup-gcloud@v2
+
+      - name: Build
+        env:
+          PROJECT: ${{ vars.GCP_PROJECT }}
+          REGION: ${{ vars.GCP_REGION }}
+        run: |
+          REPO="${REGION}-docker.pkg.dev/${PROJECT}/dreamwalker"
+          IMAGE="${REPO}/app:${GITHUB_SHA::7}"
+          echo "IMAGE=$IMAGE" >> "$GITHUB_ENV"
+          gcloud builds submit --project="$PROJECT" \
+            --config=infra/cloudbuild.yaml \
+            --substitutions="_IMAGE=${IMAGE},_CACHE=${REPO}/app:latest" .
+          gcloud artifacts docker tags add "$IMAGE" "${REPO}/app:latest" --project="$PROJECT"
+
+      # Terraform is not run here on purpose. CI ships code; changing what the
+      # infrastructure *is* - the invite list, the budget, who can reach what -
+      # stays a deliberate act from a workstation, with a plan to read first.
+      - name: Roll out
+        env:
+          PROJECT: ${{ vars.GCP_PROJECT }}
+          REGION: ${{ vars.GCP_REGION }}
+        run: |
+          gcloud run deploy dreamwalker \
+            --project="$PROJECT" --region="$REGION" \
+            --image="$IMAGE" --quiet
+
+      - name: Check it answers
+        env:
+          PROJECT: ${{ vars.GCP_PROJECT }}
+          REGION: ${{ vars.GCP_REGION }}
+        run: |
+          URL="$(gcloud run services describe dreamwalker \
+            --project="$PROJECT" --region="$REGION" --format='value(status.url)')"
+          curl -fsS --retry 5 --retry-delay 5 "${URL}/health"

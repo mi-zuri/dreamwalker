@@ -1,0 +1,187 @@
+import type { Language } from './types';
+
+/**
+ * UI strings. Deliberately terse and lowercase to match the terminal aesthetic.
+ * `ui_language` is independent of `story_language`.
+ */
+const STRINGS = {
+  en: {
+    tagline: 'live a story that is still warm',
+    signIn: '[ SIGN IN WITH GOOGLE ]',
+    signingIn: 'signing in...',
+    signInBlurb: 'your runs are saved to your account',
+    signOut: '[SIGN OUT]',
+
+    ideaLabel: 'an idea',
+    ideaPlaceholder: 'whisper it to the stars...',
+    ideaHint: 'leave empty to relive something that actually happened',
+    regionLabel: 'news from',
+    regionPl: 'poland',
+    regionWorld: 'the world',
+    languageLabel: 'story language',
+    uiLanguageLabel: 'interface',
+    start: '[ BEGIN ]',
+    library: '[SAVED RUNS]',
+    modeIdea: 'idea',
+    modeNews: 'news',
+
+    contentNoteTitle: '-- BEFORE YOU BEGIN --',
+    contentNoteAccept: '[ I UNDERSTAND ]',
+    contentNoteBack: '[BACK]',
+
+    stageStory: 'Writing the story',
+    stageMap: 'Building the place',
+    stageImages: 'Generating images',
+    stageMusic: 'Tuning the music',
+    stageFinishing: 'Almost there',
+
+    map: '-- MAP --',
+    travel: '-- TRAVEL --',
+    youAreHere: 'you are here',
+    inTransit: 'on the way',
+    setOff: '[ SET OFF ]',
+    leave: '[ MOVE ON ]',
+    destinations: 'places',
+    remaining: 'left to reach',
+    locked: 'locked',
+    blockedHint: 'no way through yet - find another place first',
+    moveHint: 'arrows / wasd to move, or click a tile',
+    noImage: '[no image]',
+    answerPlaceholder: 'in your own words...',
+    answerHint: '(this one is yours to write)',
+    submit: '[SEND]',
+    turn: 'turn',
+    quit: '[LEAVE]',
+    basedOnReal: 'based on real events, dramatized',
+
+    endingTitle: '-- HOW IT WENT --',
+    whatHappened: 'what actually happened',
+    whatYouDid: 'what you did',
+    yourStory: 'your story',
+    matchScore: 'match',
+    sources: 'sources',
+    playAgain: '[ AGAIN ]',
+    toLibrary: '[SAVED RUNS]',
+    beatMatched: 'matched',
+    beatDiverged: 'diverged',
+    beatSkipped: 'missed',
+    beatPending: 'not reached',
+
+    libraryTitle: '-- SAVED RUNS --',
+    libraryEmpty: 'nothing here yet. go and live something.',
+    replay: '[REPLAY]',
+    back: '[BACK]',
+    replayTitle: '-- REPLAY --',
+    prev: '[PREV]',
+    next: '[NEXT]',
+
+    errNetwork: 'cannot reach the server.',
+    errGeneration: 'the story fell apart while being written.',
+    errPoolEmpty: 'no fresh events left for you right now. come back later.',
+    errBudget: "this month's budget is spent. come back next month.",
+    errBlocked: 'that event is not one we can turn into a game.',
+    errAuth: 'sign-in failed.',
+    retry: '[BACK TO THE MENU]',
+  },
+  pl: {
+    tagline: 'przeżyj historię, która jeszcze nie ostygła',
+    signIn: '[ ZALOGUJ SIĘ PRZEZ GOOGLE ]',
+    signingIn: 'logowanie...',
+    signInBlurb: 'twoje rozgrywki zapisują się na koncie',
+    signOut: '[WYLOGUJ]',
+
+    ideaLabel: 'pomysł',
+    ideaPlaceholder: 'szepnij to gwiazdom...',
+    ideaHint: 'zostaw puste, aby przeżyć coś, co wydarzyło się naprawdę',
+    regionLabel: 'wiadomości z',
+    regionPl: 'polski',
+    regionWorld: 'świata',
+    languageLabel: 'język historii',
+    uiLanguageLabel: 'interfejs',
+    start: '[ ZACZNIJ ]',
+    library: '[ZAPISANE]',
+    modeIdea: 'pomysł',
+    modeNews: 'wiadomości',
+
+    contentNoteTitle: '-- ZANIM ZACZNIESZ --',
+    contentNoteAccept: '[ ROZUMIEM ]',
+    contentNoteBack: '[WRÓĆ]',
+
+    stageStory: 'Piszemy historię',
+    stageMap: 'Budujemy miejsce',
+    stageImages: 'Generujemy obrazy',
+    stageMusic: 'Stroimy muzykę',
+    stageFinishing: 'Już prawie',
+
+    map: '-- MAPA --',
+    travel: '-- PODRÓŻ --',
+    youAreHere: 'jesteś tutaj',
+    inTransit: 'w drodze',
+    setOff: '[ RUSZAJ ]',
+    leave: '[ IDŹ DALEJ ]',
+    destinations: 'miejsca',
+    remaining: 'zostało',
+    locked: 'zamknięte',
+    blockedHint: 'tędy jeszcze nie przejdziesz - znajdź najpierw inne miejsce',
+    moveHint: 'strzałki / wasd, albo kliknij pole',
+    noImage: '[brak obrazu]',
+    answerPlaceholder: 'własnymi słowami...',
+    answerHint: '(to napiszesz sam)',
+    submit: '[WYŚLIJ]',
+    turn: 'tura',
+    quit: '[WYJDŹ]',
+    basedOnReal: 'na podstawie prawdziwych wydarzeń, zdramatyzowane',
+
+    endingTitle: '-- JAK POSZŁO --',
+    whatHappened: 'jak było naprawdę',
+    whatYouDid: 'co zrobiłeś',
+    yourStory: 'twoja historia',
+    matchScore: 'zgodność',
+    sources: 'źródła',
+    playAgain: '[ JESZCZE RAZ ]',
+    toLibrary: '[ZAPISANE]',
+    beatMatched: 'zgodne',
+    beatDiverged: 'inaczej',
+    beatSkipped: 'pominięte',
+    beatPending: 'nieosiągnięte',
+
+    libraryTitle: '-- ZAPISANE ROZGRYWKI --',
+    libraryEmpty: 'jeszcze nic tu nie ma. idź i przeżyj coś.',
+    replay: '[ODTWÓRZ]',
+    back: '[WRÓĆ]',
+    replayTitle: '-- ODTWORZENIE --',
+    prev: '[POPRZ]',
+    next: '[NAST]',
+
+    errNetwork: 'nie mogę połączyć się z serwerem.',
+    errGeneration: 'historia rozsypała się przy pisaniu.',
+    errPoolEmpty: 'brak nowych wydarzeń dla ciebie. wróć później.',
+    errBudget: 'budżet na ten miesiąc się skończył. wróć w przyszłym.',
+    errBlocked: 'z tego wydarzenia nie zrobimy gry.',
+    errAuth: 'logowanie nie powiodło się.',
+    retry: '[WRÓĆ DO MENU]',
+  },
+} as const;
+
+export type StringKey = keyof (typeof STRINGS)['en'];
+
+export function t(lang: Language, key: StringKey): string {
+  return STRINGS[lang][key];
+}
+
+export const STAGE_KEYS = {
+  story: 'stageStory',
+  map: 'stageMap',
+  images: 'stageImages',
+  music: 'stageMusic',
+  finishing: 'stageFinishing',
+} as const satisfies Record<string, StringKey>;
+
+export const ERROR_KEYS = {
+  network: 'errNetwork',
+  generation_failed: 'errGeneration',
+  pool_empty: 'errPoolEmpty',
+  budget_exceeded: 'errBudget',
+  blocked_event: 'errBlocked',
+  auth: 'errAuth',
+} as const satisfies Record<string, StringKey>;

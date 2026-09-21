@@ -1,0 +1,27 @@
+# Built by Cloud Build rather than locally: Cloud Run wants linux/amd64 and
+# the workstation is arm64, so a local `docker build` would either need
+# emulation or silently ship an image that will not start.
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: build
+    args:
+      - build
+      - --file=infra/Dockerfile
+      - --tag=${_IMAGE}
+      # Previous image as a layer cache: dependencies almost never change,
+      # and pulling them beats reinstalling them.
+      - --cache-from=${_CACHE}
+      - .
+
+images:
+  - ${_IMAGE}
+
+substitutions:
+  _IMAGE: ""
+  _CACHE: ""
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+  machineType: E2_HIGHCPU_8
+
+timeout: 1200s

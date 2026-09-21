@@ -1,0 +1,26 @@
+# The build only needs sources and lockfiles; everything else is noise that
+# slows the upload to Cloud Build and busts layer caching.
+**/node_modules
+**/dist
+**/.venv
+**/__pycache__
+**/*.pyc
+.git
+.github
+.playwright-mcp
+.claude
+backend/tests
+backend/.cache
+backend/.env
+backend/.pytest_cache
+backend/.ruff_cache
+server
+docs
+infra/terraform/.terraform
+web/.env.local
+**/.DS_Store
+TODO
+# gcloud uses this instead of .gitignore when deciding what to upload to
+# Cloud Build. Without it the venv and the news fixtures ride along.
+.venv
+backend/.venv
