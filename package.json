@@ -7,7 +7,7 @@
     "web"
   ],
   "scripts": {
-    "dev": "(cd backend && uv run uvicorn app.main:app --reload --port 8000) & (cd web && bun run dev) & wait",
+    "dev": "bash scripts/dev.sh",
     "dev:web": "cd web && bun run dev",
     "dev:backend": "cd backend && uv run uvicorn app.main:app --reload --port 8000",
     "build": "cd web && bun run build",
