@@ -75,12 +75,31 @@ export function TileMap({
   className = '',
   onBlocked,
 }: Props) {
+  // A click-to-move walk is a queue of timers, one per tile. They are held
+  // here so the next click can cancel them: without that, two overlapping
+  // walks both keep stepping and the player appears to be in several places
+  // at once, because each timer moves them along a route computed from a
+  // position they have since left.
+  const walk = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  function cancelWalk() {
+    walk.current.forEach(clearTimeout);
+    walk.current = [];
+  }
+
+  useEffect(() => cancelWalk, []);
+  useEffect(() => {
+    if (disabled) cancelWalk();
+  }, [disabled]);
+
   useEffect(() => {
     if (disabled) return;
     function onKey(e: KeyboardEvent) {
       const step = KEY_STEPS[e.key];
       if (!step) return;
       e.preventDefault();
+      // A keypress takes over from a walk rather than fighting it.
+      cancelWalk();
       const next = { x: playerPos.x + step.x, y: playerPos.y + step.y };
       if (isWalkable(map, next, unlocked)) onMove(next);
     }
@@ -122,6 +141,10 @@ export function TileMap({
 
   function walkTo(target: Pos) {
     if (disabled) return;
+    // Whatever was queued is abandoned; the new route starts from where the
+    // player is now, which is what makes a second click change direction
+    // rather than start a second walk.
+    cancelWalk();
     const path = pathTo(map, playerPos, target, unlocked);
     // Stop as soon as the route reaches somewhere the player still has to act,
     // otherwise walking past a location would silently skip its scene.
@@ -130,7 +153,7 @@ export function TileMap({
       return dest && !resolved.includes(dest.key);
     });
     const route = stopAt === -1 ? path : path.slice(0, stopAt + 1);
-    route.forEach((step, i) => setTimeout(() => onMove(step), i * 90));
+    walk.current = route.map((step, i) => setTimeout(() => onMove(step), i * 90));
   }
 
   const rows = [];
